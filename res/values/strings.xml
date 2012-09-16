@@ -1,0 +1,50 @@
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <string name="app_name">A2DP Switcher</string>
+    <string name="title_activity_main">Streaming devices</string>
+    <string name="touch_to_change">Touch to change streaming device</string>
+    <string name="menu_remove">Remove from list</string>
+    <string name="menu_rename">Rename device…</string>
+    <string name="menu_write_tag">Write NFC tag…</string>
+    <string name="device_name">Device name</string>
+    <string name="confirm_remove_device">Are you sure you want to remove \"%1$s\"?</string>
+    <string name="notification_ticker">A2DP Switcher active</string>
+    <string name="no_device">No device</string>
+    <string name="enable_bluetooth">Bluetooth is currently disabled. Enable it to show available devices.</string>
+    <string name="enable">Enable</string>
+    <string name="not_paired">Your phone is not paired with any A2DP devices.</string>
+    <string name="connected">Connected</string>
+    <string name="show_notification">Show notification</string>
+    <string name="menu">Menu</string>
+    
+    <!-- Failure states -->
+    <string name="failure_bluetooth">This device does not support Bluetooth.</string>
+    <string name="failure_enable_bluetooth">Failed to enable Bluetooth.</string>
+    <string name="failure_audio_service">Failed to connect to audio service.</string>
+    <string name="failure_bond_device">Failed to pair with Bluetooth device.</string>
+    <string name="failure_connect_device">Failed to connect to Bluetooth device.</string>
+    <string name="failure_write_tag">Failed to format NFC tag.</string>
+    <string name="failure_read_tag">Failed to read NFC tag.</string>
+    
+    <!-- Progress states -->
+    <string name="progress_reading_tag">Reading NFC tag…</string>
+    <string name="progress_enable_bluetooth">Turning on Bluetooth…</string>
+    <string name="progress_audio_service">Initializing audio service…</string>
+    <string name="progress_bond_device">Pairing Bluetooth device…</string>
+    <string name="progress_connect_device">Connecting to device…</string>
+    <string name="progress_write_tag">Formatting tag…</string>
+    
+    <!-- Connection states -->
+    <string name="state_connected">Connected</string>
+    <string name="state_connecting">Connecting</string>
+    <string name="state_disconnected">Disconnected</string>
+    <string name="state_disconnecting">Disconnecting</string>
+    <string name="state_playing">Playing</string>
+
+    <!-- NFC -->
+    <string name="connecting">Connecting audio…</string>
+    <string name="scan_a_tag">Scan a tag</string>
+    <string name="write_successful">Wrote pairing information to tag</string>
+    <string name="write_failed">Failed to write pairing information</string>
+
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <item name="notify_switcher" type="id"/>
+    <item name="tag_device" type="id"/>
+    <item name="tag_position" type="id"/>
+    <item name="list_entry" type="id"/>
+
+</resources>

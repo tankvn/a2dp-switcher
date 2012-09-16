@@ -1,0 +1,78 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.googamaphone.a2dpswitcher"
+    android:versionCode="1"
+    android:versionName="0.1.0" >
+
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.NFC" />
+
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+    
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="true" />
+
+    <uses-sdk
+        android:minSdkVersion="10"
+        android:targetSdkVersion="16" />
+
+    <application
+        android:backupAgent=".PreferencesBackupAgent"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name" >
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:launchMode="singleTop"
+            android:theme="@style/DialogTheme" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.googamphone.a2dpswitcher.SWITCH_DEVICE" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service android:name=".BluetoothSwitcherService" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:permission="android.permission.REBOOT" >
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".ReadTagActivity"
+            android:label="@string/connecting"
+            android:theme="@style/DialogTheme" >
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data
+                    android:host="connect"
+                    android:scheme="a2dp" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".WriteTagActivity"
+            android:exported="false"
+            android:label="@string/scan_a_tag"
+            android:theme="@style/DialogTheme" />
+
+        <meta-data
+            android:name="com.google.android.backup.api_key"
+            android:value="AEdPqrEAAAAINtkfjttcSBXpLeb1dHUaIx6stI3mWQHiNHK-HQ" />
+    </application>
+
+</manifest>

@@ -1,0 +1,89 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="340dp" >
+
+    <RelativeLayout
+        android:id="@+id/bluetooth_disabled"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_above="@+id/divider"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical" >
+
+        <TextView
+            android:id="@+id/enable_bluetooth"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_margin="8dp"
+            android:gravity="center"
+            android:text="@string/enable_bluetooth"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <Button
+            android:id="@+id/enable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/enable_bluetooth"
+            android:layout_centerHorizontal="true"
+            android:layout_margin="8dp"
+            android:text="@string/enable" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/empty_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_above="@+id/divider"
+        android:layout_alignParentTop="true"
+        android:layout_margin="8dp"
+        android:gravity="center"
+        android:text="@string/not_paired"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/list_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_above="@+id/divider"
+        android:layout_alignParentTop="true"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_above="@+id/bottom_bar"
+        android:background="@color/dialog_divider" />
+
+    <LinearLayout
+        android:id="@+id/bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal" >
+
+        <CheckBox
+            android:id="@+id/show_notification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_margin="8dp"
+            android:layout_weight="1.0"
+            android:text="@string/show_notification" />
+
+        <ImageButton
+            android:id="@+id/menu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginRight="12dp"
+            android:background="@null"
+            android:contentDescription="@string/menu"
+            android:src="@drawable/ic_menu_moreoverflow"
+            android:visibility="gone" />
+    </LinearLayout>
+
+</RelativeLayout>
