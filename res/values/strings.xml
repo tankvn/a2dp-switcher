@@ -46,5 +46,11 @@
     <string name="scan_a_tag">Scan a tag</string>
     <string name="write_successful">Wrote pairing information to tag</string>
     <string name="write_failed">Failed to write pairing information</string>
+    
+    <!-- Main menu -->
+    <string name="disconnect_all">Disconnect all</string>
+    <string name="manage_hidden">Hidden devices…</string>
+    <string name="add_new_device">Add new device…</string>
+    <string name="preferences">Preferences</string>
 
 </resources>

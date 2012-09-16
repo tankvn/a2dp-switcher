@@ -82,8 +82,7 @@
             android:layout_marginRight="12dp"
             android:background="@null"
             android:contentDescription="@string/menu"
-            android:src="@drawable/ic_menu_moreoverflow"
-            android:visibility="gone" />
+            android:src="@drawable/ic_menu_moreoverflow" />
     </LinearLayout>
 
 </RelativeLayout>

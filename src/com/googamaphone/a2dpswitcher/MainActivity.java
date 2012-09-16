@@ -1,6 +1,12 @@
 
 package com.googamaphone.a2dpswitcher;
 
+import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+import com.googamaphone.utils.NfcUtils;
+import com.googamaphone.utils.WeakReferenceHandler;
+
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -34,11 +40,7 @@ import android.widget.PopupMenu;
 import android.widget.PopupMenu.OnMenuItemClickListener;
 import android.widget.TextView;
 
-import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.utils.BluetoothDeviceUtils;
-import com.googamaphone.utils.NfcUtils;
-import com.googamaphone.utils.WeakReferenceHandler;
+import java.util.List;
 
 public class MainActivity extends FragmentActivity {
     public static final String QUERY_NAME = "name";
@@ -53,6 +55,11 @@ public class MainActivity extends FragmentActivity {
 
     /** The version of encoding used for NFC tags. */
     private static final int TAG_VERSION = 1;
+    
+    private static final int[] STATES_CONNECTED = new int[] {
+        BluetoothA2dpCompat.STATE_CONNECTED,
+        BluetoothA2dpCompat.STATE_CONNECTING
+    };
 
     private static final String DIALOG_REMOVE = "dialog_remove";
     private static final String DIALOG_RENAME = "dialog_rename";
@@ -94,7 +101,9 @@ public class MainActivity extends FragmentActivity {
         };
         mDeviceAdapter.setOnSettingsClickListener(mOnClickListener);
 
-        findViewById(R.id.menu).setOnClickListener(mOnClickListener);
+        final View menuButton = findViewById(R.id.menu);
+        menuButton.setOnClickListener(mOnClickListener);
+        registerForContextMenu(menuButton);
 
         final CheckBox checkBox = (CheckBox) findViewById(R.id.show_notification);
         checkBox.setOnCheckedChangeListener(mOnCheckedListener);
@@ -204,11 +213,24 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
-        if (!(menuInfo instanceof AdapterContextMenuInfo)) {
-            super.onCreateContextMenu(menu, v, menuInfo);
+        if (menuInfo instanceof AdapterContextMenuInfo) {
+            // TODO: Migrate this to use PopupMenu.
+            onCreateAdapterContextMenu(menu, v, (AdapterContextMenuInfo) menuInfo);
             return;
         }
-
+        
+        switch (v.getId()) {
+            case R.id.menu:
+                // TODO: Maybe migrate this to use PopupMenu.
+                getMenuInflater().inflate(R.menu.main_menu, menu);
+                return;
+        }
+        
+        super.onCreateContextMenu(menu, v, menuInfo);
+        return;
+    }
+    
+    private void onCreateAdapterContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
         final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
         final int position = adapterMenuInfo.position;
         final BluetoothDevice device = mDeviceAdapter.getItem(position);
@@ -219,20 +241,38 @@ public class MainActivity extends FragmentActivity {
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         final ContextMenuInfo menuInfo = item.getMenuInfo();
-
-        if (!(menuInfo instanceof AdapterContextMenuInfo)) {
-            return super.onContextItemSelected(item);
+        
+        if (menuInfo instanceof AdapterContextMenuInfo) {
+            return onAdapterContextItemSelected(item, (AdapterContextMenuInfo) menuInfo);
         }
 
-        final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
-        final int position = adapterMenuInfo.position;
+        switch (item.getItemId()) {
+            case R.id.disconnect_all:
+                final List<BluetoothDevice> connectedDevices = mAudioProxy
+                        .getDevicesMatchingConnectionStates(STATES_CONNECTED);
+                for (BluetoothDevice connectedDevice : connectedDevices) {
+                    mAudioProxy.disconnect(connectedDevice);
+                }
+                return true;
+            case R.id.add_new_device:
+                // TODO: Show built-in Bluetooth settings activity.
+                return true;
+            case R.id.manage_hidden:
+                // TODO: Implement management of hidden devices.
+                return true;
+            case R.id.preferences:
+                // TODO: Implement preferences.
+                return true;
+        }
+        
+        return super.onContextItemSelected(item);
+    }
+    
+    private boolean onAdapterContextItemSelected(MenuItem item, AdapterContextMenuInfo menuInfo) {
+        final int position = menuInfo.position;
         final BluetoothDevice device = mDeviceAdapter.getItem(position);
 
-        if (performActionForDevice(item.getItemId(), device)) {
-            return true;
-        }
-
-        return super.onContextItemSelected(item);
+        return performActionForDevice(item.getItemId(), device);
     }
 
     private void onCreateDeviceSettingsMenu(Menu menu, BluetoothDevice device) {
@@ -325,7 +365,7 @@ public class MainActivity extends FragmentActivity {
                     attemptEnableBluetooth();
                     break;
                 case R.id.menu:
-                    // TODO: Show a menu.
+                    openContextMenu(v);
                     break;
                 case R.id.list_entry: {
                     final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
@@ -385,7 +425,7 @@ public class MainActivity extends FragmentActivity {
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            // TODO Auto-generated method stub
+            // TODO: Reconnect to device management service or show error.
         }
 
         @Override
