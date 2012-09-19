@@ -1,5 +1,4 @@
-*/bin
-*/gen
-local.properties
 /bin
 /gen
+local.properties
+.*

@@ -1,8 +1,10 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import java.util.List;
-import java.util.TreeSet;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpCompatCallback;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+import com.googamaphone.utils.PreferencesUtils;
 
 import android.app.PendingIntent;
 import android.app.Service;
@@ -20,13 +22,10 @@ import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
-import android.util.Log;
 import android.util.SparseArray;
 
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpCompatCallback;
-import com.googamaphone.utils.BluetoothDeviceUtils;
-import com.googamaphone.utils.PreferencesUtils;
+import java.util.List;
+import java.util.TreeSet;
 
 public class BluetoothSwitcherService extends Service {
     public static final String PREF_HIDDEN = "hidden";
@@ -34,8 +33,6 @@ public class BluetoothSwitcherService extends Service {
     public static final String PREF_NOTIFY = "show_notification";
 
     public static final boolean PREF_NOTIFY_DEFAULT = true;
-
-    private static final String TAG = BluetoothSwitcherService.class.getSimpleName();
 
     private static final int[] STATES_CONNECTED = new int[] {
             BluetoothA2dpCompat.STATE_CONNECTING,
@@ -111,7 +108,8 @@ public class BluetoothSwitcherService extends Service {
                 .setSmallIcon(R.drawable.ic_stat_switcher)
                 .setTicker(getString(R.string.notification_ticker))
                 .setContentIntent(pendingIntent)
-                .setOngoing(true);
+                .setOngoing(true)
+                .setWhen(0);
     }
 
     private void updateNotification() {
@@ -122,15 +120,15 @@ public class BluetoothSwitcherService extends Service {
 
         if (mBluetoothAdapter == null) {
             // This device does not support Bluetooth.
-            mNotificationBuilder.setContentTitle(getString(R.string.failure_bluetooth));
+            mNotificationBuilder.setContentTitle(getString(R.string.notify_missing_bluetooth));
             mNotificationBuilder.setContentText(null);
         } else if (!mBluetoothAdapter.isEnabled()) {
             // Bluetooth is currently disabled.
-            mNotificationBuilder.setContentTitle(getString(R.string.failure_enable_bluetooth));
+            mNotificationBuilder.setContentTitle(getString(R.string.notify_bluetooth_disabled));
             mNotificationBuilder.setContentText(null);
         } else if (mAudioProxy == null) {
             // Failed to connect to the audio service.
-            mNotificationBuilder.setContentTitle(getString(R.string.failure_audio_service));
+            mNotificationBuilder.setContentTitle(getString(R.string.notify_missing_audio_service));
             mNotificationBuilder.setContentText(null);
         } else {
             mNotificationBuilder.setContentTitle(getConnectedDeviceName());
@@ -160,9 +158,6 @@ public class BluetoothSwitcherService extends Service {
         PreferencesUtils.getCollection(prefs, PREF_HIDDEN, mHiddenDevices);
 
         mShowNotification = prefs.getBoolean(PREF_NOTIFY, PREF_NOTIFY_DEFAULT);
-
-        Log.i(TAG, "Loaded preferences");
-        Log.v(TAG, PREF_CUSTOM_NAMES + ": " + prefs.getString(PREF_CUSTOM_NAMES, "<empty>"));
     }
 
     private void savePreferences() {
@@ -177,9 +172,6 @@ public class BluetoothSwitcherService extends Service {
 
         // Ensure data is backed up.
         BackupManager.dataChanged(getPackageName());
-
-        Log.i(TAG, "Saved preferences");
-        Log.v(TAG, PREF_CUSTOM_NAMES + ": " + prefs.getString(PREF_CUSTOM_NAMES, "<empty>"));
     }
 
     private void setNameForDeviceInternal(int deviceId, String name) {

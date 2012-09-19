@@ -16,6 +16,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.DataSetObserver;
 import android.net.Uri;
 import android.os.Build;
@@ -23,11 +26,14 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.RemoteException;
+import android.provider.Settings;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentActivity;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.KeyEvent;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -46,19 +52,16 @@ public class MainActivity extends FragmentActivity {
     public static final String QUERY_NAME = "name";
     public static final String QUERY_ADDRESS = "address";
     public static final String QUERY_VERSION = "version";
-
     public static final String ACTION_SWITCH_DEVICE = "com.googamphone.a2dpswitcher.SWITCH_DEVICE";
     public static final String EXTRA_DEVICE_ID = "device_id";
-
     public static final String URI_AUTHORITY = "connect";
     public static final String URI_SCHEME = "a2dp";
 
     /** The version of encoding used for NFC tags. */
     private static final int TAG_VERSION = 1;
-    
+
     private static final int[] STATES_CONNECTED = new int[] {
-        BluetoothA2dpCompat.STATE_CONNECTED,
-        BluetoothA2dpCompat.STATE_CONNECTING
+            BluetoothA2dpCompat.STATE_CONNECTED, BluetoothA2dpCompat.STATE_CONNECTING
     };
 
     private static final String DIALOG_REMOVE = "dialog_remove";
@@ -154,7 +157,7 @@ public class MainActivity extends FragmentActivity {
 
         updateDataSetObserver(enabled);
 
-        if (!enabled) {
+        if (enabled) {
             showDeviceList();
         } else {
             showBluetoothDisabled();
@@ -212,24 +215,47 @@ public class MainActivity extends FragmentActivity {
     }
 
     @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MENU:
+                event.startTracking();
+                return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MENU:
+                if (event.isTracking()) {
+                    findViewById(R.id.menu).performClick();
+                    return true;
+                }
+                break;
+        }
+
+        return super.onKeyUp(keyCode, event);
+    }
+
+    @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
         if (menuInfo instanceof AdapterContextMenuInfo) {
-            // TODO: Migrate this to use PopupMenu.
             onCreateAdapterContextMenu(menu, v, (AdapterContextMenuInfo) menuInfo);
             return;
         }
-        
+
         switch (v.getId()) {
             case R.id.menu:
-                // TODO: Maybe migrate this to use PopupMenu.
                 getMenuInflater().inflate(R.menu.main_menu, menu);
                 return;
         }
-        
+
         super.onCreateContextMenu(menu, v, menuInfo);
         return;
     }
-    
+
     private void onCreateAdapterContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
         final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
         final int position = adapterMenuInfo.position;
@@ -241,9 +267,12 @@ public class MainActivity extends FragmentActivity {
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         final ContextMenuInfo menuInfo = item.getMenuInfo();
-        
+
         if (menuInfo instanceof AdapterContextMenuInfo) {
-            return onAdapterContextItemSelected(item, (AdapterContextMenuInfo) menuInfo);
+            final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
+            final BluetoothDevice device = mDeviceAdapter.getItem(adapterMenuInfo.position);
+
+            return performActionForDevice(item.getItemId(), device);
         }
 
         switch (item.getItemId()) {
@@ -254,25 +283,21 @@ public class MainActivity extends FragmentActivity {
                     mAudioProxy.disconnect(connectedDevice);
                 }
                 return true;
-            case R.id.add_new_device:
-                // TODO: Show built-in Bluetooth settings activity.
+            case R.id.bluetooth_settings:
+                startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
                 return true;
             case R.id.manage_hidden:
                 // TODO: Implement management of hidden devices.
                 return true;
-            case R.id.preferences:
+            case R.id.settings:
                 // TODO: Implement preferences.
                 return true;
+            case R.id.contact_developer:
+                contactDeveloper();
+                return true;
         }
-        
-        return super.onContextItemSelected(item);
-    }
-    
-    private boolean onAdapterContextItemSelected(MenuItem item, AdapterContextMenuInfo menuInfo) {
-        final int position = menuInfo.position;
-        final BluetoothDevice device = mDeviceAdapter.getItem(position);
 
-        return performActionForDevice(item.getItemId(), device);
+        return super.onContextItemSelected(item);
     }
 
     private void onCreateDeviceSettingsMenu(Menu menu, BluetoothDevice device) {
@@ -304,8 +329,8 @@ public class MainActivity extends FragmentActivity {
                 return true;
             }
             case R.string.menu_write_tag: {
-                final Uri.Builder builder = new Uri.Builder()
-                        .scheme(URI_SCHEME).authority(URI_AUTHORITY)
+                final Uri.Builder builder = new Uri.Builder().scheme(URI_SCHEME)
+                        .authority(URI_AUTHORITY)
                         .appendQueryParameter(QUERY_VERSION, Integer.toString(TAG_VERSION))
                         .appendQueryParameter(QUERY_ADDRESS, device.getAddress());
 
@@ -355,6 +380,39 @@ public class MainActivity extends FragmentActivity {
         checkBox.setChecked(checked);
     }
 
+    protected void contactDeveloper() {
+        String appVersion = "unknown";
+        String appPackage = "unknown";
+        final String phoneModel = android.os.Build.MODEL;
+        final String osVersion = android.os.Build.VERSION.RELEASE;
+
+        try {
+            final PackageManager pm = getPackageManager();
+            final PackageInfo pi = pm.getPackageInfo(getPackageName(), 0);
+            appVersion = pi.versionName;
+            appPackage = pi.packageName;
+        } catch (final NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        final String appName = getString(R.string.app_name);
+        final String contactDev = getString(R.string.contact_dev);
+        final String contactEmail = getString(R.string.contact_email);
+        final String subject = getString(R.string.contact_subject, appName);
+        final String body = getString(R.string.contact_body, appName, appPackage, appVersion,
+                phoneModel, osVersion);
+
+        final Intent sendIntent = new Intent(Intent.ACTION_SEND);
+        sendIntent.putExtra(Intent.EXTRA_EMAIL, new String[] {
+                contactEmail
+        });
+        sendIntent.putExtra(Intent.EXTRA_TEXT, body);
+        sendIntent.putExtra(Intent.EXTRA_SUBJECT, subject);
+        sendIntent.setType("plain/text");
+
+        startActivity(Intent.createChooser(sendIntent, contactDev));
+    }
+
     private final MainActivityHandler mHandler = new MainActivityHandler(this);
 
     private final OnClickListener mOnClickListener = new OnClickListener() {
@@ -365,28 +423,37 @@ public class MainActivity extends FragmentActivity {
                     attemptEnableBluetooth();
                     break;
                 case R.id.menu:
-                    openContextMenu(v);
+                    if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
+                        HoneycombHelper.showOptionsMenu(MainActivity.this, v, R.menu.main_menu);
+                    } else {
+                        v.showContextMenu();
+                    }
                     break;
                 case R.id.list_entry: {
                     final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
                     final int state = mAudioProxy.getConnectionState(device);
+                    final TextView status = (TextView) v.findViewById(android.R.id.text2);
 
                     if (state == BluetoothA2dpCompat.STATE_DISCONNECTED) {
+                        status.setText(R.string.state_connecting);
                         mAudioProxy.connect(device);
                     } else {
+                        status.setText(R.string.state_disconnecting);
                         mAudioProxy.disconnect(device);
                     }
-                } break;
+                }
+                    break;
                 case R.id.device_settings: {
                     final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
 
-                    if (Build.VERSION.SDK_INT <= 10) {
+                    if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
+                        HoneycombHelper.showDeviceSettingsMenu(MainActivity.this, v, device);
+                    } else {
                         final ListView listView = (ListView) findViewById(R.id.list_view);
                         listView.showContextMenuForChild((View) v.getParent());
-                    } else {
-                        HoneycombHelper.showDeviceSettingsMenu(MainActivity.this, v, device);
                     }
-                } break;
+                }
+                    break;
             }
         }
     };
@@ -450,6 +517,7 @@ public class MainActivity extends FragmentActivity {
 
     private static class MainActivityHandler extends WeakReferenceHandler<MainActivity> {
         private static final int STATE_CHANGED = 1;
+
         private static final int PROXY_AVAILABLE = 2;
 
         public MainActivityHandler(MainActivity parent) {
@@ -479,9 +547,26 @@ public class MainActivity extends FragmentActivity {
 
     @TargetApi(11)
     private static class HoneycombHelper {
-        private static void showDeviceSettingsMenu(final MainActivity parent, View anchor, final BluetoothDevice device) {
-            final PopupMenu deviceMenu = new PopupMenu(parent, anchor);
+        public static final int MIN_API_LEVEL = 11;
 
+        public static void showOptionsMenu(final MainActivity parent, View anchor, int menuRes) {
+            final PopupMenu optionsMenu = new PopupMenu(parent, anchor);
+            optionsMenu.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+                @Override
+                public boolean onMenuItemClick(MenuItem item) {
+                    return parent.onContextItemSelected(item);
+                }
+            });
+
+            final Menu menu = optionsMenu.getMenu();
+            final MenuInflater inflater = optionsMenu.getMenuInflater();
+            inflater.inflate(menuRes, menu);
+            optionsMenu.show();
+        }
+
+        public static void showDeviceSettingsMenu(final MainActivity parent, View anchor,
+                final BluetoothDevice device) {
+            final PopupMenu deviceMenu = new PopupMenu(parent, anchor);
             deviceMenu.setOnMenuItemClickListener(new OnMenuItemClickListener() {
                 @Override
                 public boolean onMenuItemClick(MenuItem item) {

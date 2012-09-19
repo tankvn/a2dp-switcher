@@ -10,7 +10,6 @@
     <uses-feature
         android:name="android.hardware.nfc"
         android:required="false" />
-    
     <uses-feature
         android:name="android.hardware.bluetooth"
         android:required="true" />
@@ -53,6 +52,7 @@
         <activity
             android:name=".ReadTagActivity"
             android:label="@string/connecting"
+            android:permission="android.permission.NFC"
             android:theme="@style/DialogTheme" >
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />

@@ -341,7 +341,7 @@ public class ReadTagActivity extends Activity {
 
     private final ReadTagHandler mHandler = new ReadTagHandler(this);
 
-    private class ReadTagHandler extends WeakReferenceHandler<ReadTagActivity> {
+    private static class ReadTagHandler extends WeakReferenceHandler<ReadTagActivity> {
         private static final int DELAYED_FINISH = 1;
         private static final int PROXY_AVAILABLE = 2;
 

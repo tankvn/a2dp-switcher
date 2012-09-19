@@ -2,20 +2,25 @@
 
     <string name="app_name">A2DP Switcher</string>
     <string name="title_activity_main">Streaming devices</string>
-    <string name="touch_to_change">Touch to change streaming device</string>
     <string name="menu_remove">Remove from list</string>
     <string name="menu_rename">Rename device…</string>
     <string name="menu_write_tag">Write NFC tag…</string>
     <string name="device_name">Device name</string>
     <string name="confirm_remove_device">Are you sure you want to remove \"%1$s\"?</string>
-    <string name="notification_ticker">A2DP Switcher active</string>
-    <string name="no_device">No device</string>
     <string name="enable_bluetooth">Bluetooth is currently disabled. Enable it to show available devices.</string>
     <string name="enable">Enable</string>
     <string name="not_paired">Your phone is not paired with any A2DP devices.</string>
     <string name="connected">Connected</string>
     <string name="show_notification">Show notification</string>
     <string name="menu">Menu</string>
+    
+    <!-- Notification -->
+    <string name="notification_ticker">A2DP Switcher active</string>
+    <string name="touch_to_change">Touch to change streaming device.</string>
+    <string name="no_device">No device</string>
+    <string name="notify_missing_bluetooth">Bluetooth not supported</string>
+    <string name="notify_bluetooth_disabled">Bluetooth is disabled</string>
+    <string name="notify_missing_audio_service">Audio service not available</string>
     
     <!-- Failure states -->
     <string name="failure_bluetooth">This device does not support Bluetooth.</string>
@@ -49,8 +54,8 @@
     
     <!-- Main menu -->
     <string name="disconnect_all">Disconnect all</string>
-    <string name="manage_hidden">Hidden devices…</string>
-    <string name="add_new_device">Add new device…</string>
-    <string name="preferences">Preferences</string>
+    <string name="bluetooth_settings">Bluetooth settings</string>
+    <string name="manage_hidden">Hidden devices</string>
+    <string name="settings">Settings</string>
 
 </resources>
