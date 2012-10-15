@@ -53,6 +53,8 @@ public class WriteTagActivity extends Activity {
 
         setContentView(R.layout.dialog_waiting);
 
+        ((TextView) findViewById(R.id.message)).setText(R.string.progress_write_tag);
+
         final NfcManager nfcManager = (NfcManager) getSystemService(NFC_SERVICE);
 
         mNfcAdapter = nfcManager.getDefaultAdapter();

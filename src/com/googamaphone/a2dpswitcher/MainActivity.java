@@ -45,6 +45,7 @@ import android.widget.ListView;
 import android.widget.PopupMenu;
 import android.widget.PopupMenu.OnMenuItemClickListener;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -165,11 +166,14 @@ public class MainActivity extends FragmentActivity {
     }
 
     private void updateDataSetObserver(boolean enabled) {
-        if (!enabled && mHasRegisteredObserver) {
-            mDeviceAdapter.unregisterDataSetObserver(mDataSetObserver);
-        } else if (enabled && !mHasRegisteredObserver) {
-            mDeviceAdapter.registerDataSetObserver(mDataSetObserver);
-            mHasRegisteredObserver = true;
+        synchronized (mDeviceAdapter) {
+            if (!enabled && mHasRegisteredObserver) {
+                mHasRegisteredObserver = false;
+                mDeviceAdapter.unregisterDataSetObserver(mDataSetObserver);
+            } else if (enabled && !mHasRegisteredObserver) {
+                mHasRegisteredObserver = true;
+                mDeviceAdapter.registerDataSetObserver(mDataSetObserver);
+            }
         }
     }
 
@@ -242,7 +246,7 @@ public class MainActivity extends FragmentActivity {
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
         if (menuInfo instanceof AdapterContextMenuInfo) {
-            onCreateAdapterContextMenu(menu, v, (AdapterContextMenuInfo) menuInfo);
+            onCreateAdapterContextMenu(menu, v, menuInfo);
             return;
         }
 
@@ -364,11 +368,8 @@ public class MainActivity extends FragmentActivity {
     }
 
     private void attemptEnableBluetooth() {
-        setContentView(R.layout.dialog_waiting);
-
         if (!mBluetoothAdapter.enable()) {
-            // TODO: Show "failed to enable Bluetooth" dialog.
-            return;
+            Toast.makeText(this,  R.string.failure_enable_bluetooth, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -419,16 +420,16 @@ public class MainActivity extends FragmentActivity {
         @Override
         public void onClick(View v) {
             switch (v.getId()) {
-                case R.id.enable:
+                case R.id.enable: {
                     attemptEnableBluetooth();
-                    break;
-                case R.id.menu:
+                } break;
+                case R.id.menu: {
                     if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
                         HoneycombHelper.showOptionsMenu(MainActivity.this, v, R.menu.main_menu);
                     } else {
                         v.showContextMenu();
                     }
-                    break;
+                } break;
                 case R.id.list_entry: {
                     final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
                     final int state = mAudioProxy.getConnectionState(device);
@@ -441,8 +442,7 @@ public class MainActivity extends FragmentActivity {
                         status.setText(R.string.state_disconnecting);
                         mAudioProxy.disconnect(device);
                     }
-                }
-                    break;
+                } break;
                 case R.id.device_settings: {
                     final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
 
@@ -452,8 +452,7 @@ public class MainActivity extends FragmentActivity {
                         final ListView listView = (ListView) findViewById(R.id.list_view);
                         listView.showContextMenuForChild((View) v.getParent());
                     }
-                }
-                    break;
+                } break;
             }
         }
     };
