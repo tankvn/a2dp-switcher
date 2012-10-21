@@ -27,13 +27,11 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.RemoteException;
 import android.provider.Settings;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentActivity;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.KeyEvent;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -65,11 +63,11 @@ public class MainActivity extends FragmentActivity {
             BluetoothA2dpCompat.STATE_CONNECTED, BluetoothA2dpCompat.STATE_CONNECTING
     };
 
-    private static final String DIALOG_REMOVE = "dialog_remove";
+    private static final String DIALOG_HIDE = "dialog_remove";
     private static final String DIALOG_RENAME = "dialog_rename";
 
     private BluetoothAdapter mBluetoothAdapter;
-    private BluetoothListAdapter mDeviceAdapter;
+    private ManagedBluetoothListAdapter mDeviceAdapter;
     private BluetoothA2dpCompat mAudioProxy;
     private DeviceManagementBinder mDeviceManagementBinder;
 
@@ -83,27 +81,8 @@ public class MainActivity extends FragmentActivity {
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        mDeviceAdapter = new BluetoothListAdapter(this, android.R.layout.simple_list_item_2,
-                android.R.id.text1, android.R.id.text2) {
-            @Override
-            public boolean isDeviceVisible(BluetoothDevice device) {
-                if (mDeviceManagementBinder != null) {
-                    return mDeviceManagementBinder.isDeviceVisible(device);
-                }
-
-                return super.isDeviceVisible(device);
-            }
-
-            @Override
-            public String getDeviceName(BluetoothDevice device) {
-                if (mDeviceManagementBinder != null) {
-                    return mDeviceManagementBinder.getDeviceName(device);
-                }
-
-                return super.getDeviceName(device);
-            }
-        };
-        mDeviceAdapter.setOnSettingsClickListener(mOnClickListener);
+        mDeviceAdapter = new ManagedBluetoothListAdapter(this);
+        mDeviceAdapter.setOnSettingsClickListener(mOnDeviceClickListener);
 
         final View menuButton = findViewById(R.id.menu);
         menuButton.setOnClickListener(mOnClickListener);
@@ -128,6 +107,37 @@ public class MainActivity extends FragmentActivity {
         updateApplicationState();
     }
 
+    private static class ManagedBluetoothListAdapter extends BluetoothListAdapter {
+        private DeviceManagementBinder mDeviceManagementBinder;
+
+        public ManagedBluetoothListAdapter(Context context) {
+            super(context, android.R.layout.simple_list_item_2, android.R.id.text1,
+                    android.R.id.text2);
+        }
+
+        public void setDeviceManagementBinder(DeviceManagementBinder deviceManagementBinder) {
+            mDeviceManagementBinder = deviceManagementBinder;
+        }
+
+        @Override
+        public boolean isDeviceVisible(BluetoothDevice device) {
+            if (mDeviceManagementBinder != null) {
+                return mDeviceManagementBinder.isDeviceVisible(device);
+            }
+
+            return super.isDeviceVisible(device);
+        }
+
+        @Override
+        public String getDeviceName(BluetoothDevice device) {
+            if (mDeviceManagementBinder != null) {
+                return mDeviceManagementBinder.getDeviceName(device);
+            }
+
+            return super.getDeviceName(device);
+        }
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -144,6 +154,8 @@ public class MainActivity extends FragmentActivity {
     private void onDeviceManagerConnected(DeviceManagementBinder binder) {
         mDeviceManagementBinder = binder;
         mDeviceManagementBinder.registerCallback(mDeviceDataCallback);
+
+        mDeviceAdapter.setDeviceManagementBinder(mDeviceManagementBinder);
 
         mHandler.onDeviceDataChanged();
     }
@@ -245,6 +257,10 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
+        onCreateOptionsMenu(menu, v, menuInfo);
+    }
+
+    private void onCreateOptionsMenu(Menu menu, View v, ContextMenuInfo menuInfo) {
         if (menuInfo instanceof AdapterContextMenuInfo) {
             onCreateAdapterContextMenu(menu, v, menuInfo);
             return;
@@ -253,19 +269,18 @@ public class MainActivity extends FragmentActivity {
         switch (v.getId()) {
             case R.id.menu:
                 getMenuInflater().inflate(R.menu.main_menu, menu);
-                return;
+                menu.findItem(R.id.disconnect_all).setEnabled(mAudioProxy != null);
+                menu.findItem(R.id.show_hidden).setChecked(mDeviceAdapter.isShowingAllDevices());
+                break;
         }
-
-        super.onCreateContextMenu(menu, v, menuInfo);
-        return;
     }
 
-    private void onCreateAdapterContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
+    private void onCreateAdapterContextMenu(Menu menu, View v, ContextMenuInfo menuInfo) {
         final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
         final int position = adapterMenuInfo.position;
         final BluetoothDevice device = mDeviceAdapter.getItem(position);
 
-        onCreateDeviceSettingsMenu(menu, device);
+        onCreateOptionsMenuForDevice(menu, device);
     }
 
     @Override
@@ -276,22 +291,19 @@ public class MainActivity extends FragmentActivity {
             final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
             final BluetoothDevice device = mDeviceAdapter.getItem(adapterMenuInfo.position);
 
-            return performActionForDevice(item.getItemId(), device);
+            return onContextItemSelectedForDevice(item, device);
         }
 
         switch (item.getItemId()) {
             case R.id.disconnect_all:
-                final List<BluetoothDevice> connectedDevices = mAudioProxy
-                        .getDevicesMatchingConnectionStates(STATES_CONNECTED);
-                for (BluetoothDevice connectedDevice : connectedDevices) {
-                    mAudioProxy.disconnect(connectedDevice);
-                }
-                return true;
+                return disconnectAllDevices();
             case R.id.bluetooth_settings:
                 startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
                 return true;
-            case R.id.manage_hidden:
-                // TODO: Implement management of hidden devices.
+            case R.id.show_hidden:
+                final boolean checked = !item.isChecked();
+                item.setChecked(checked);
+                mDeviceAdapter.showAllDevices(checked);
                 return true;
             case R.id.settings:
                 // TODO: Implement preferences.
@@ -304,54 +316,74 @@ public class MainActivity extends FragmentActivity {
         return super.onContextItemSelected(item);
     }
 
-    private void onCreateDeviceSettingsMenu(Menu menu, BluetoothDevice device) {
-        menu.add(ContextMenu.NONE, R.string.menu_rename, ContextMenu.NONE, R.string.menu_rename);
-
-        if (Build.VERSION.SDK_INT >= NfcUtils.MIN_SDK_VERSION) {
-            menu.add(ContextMenu.NONE, R.string.menu_write_tag, ContextMenu.NONE,
-                    R.string.menu_write_tag);
+    private boolean disconnectAllDevices() {
+        final BluetoothA2dpCompat audioProxy = mAudioProxy;
+        if (audioProxy == null) {
+            return false;
         }
 
-        menu.add(ContextMenu.NONE, R.string.menu_remove, ContextMenu.NONE, R.string.menu_remove);
+        final List<BluetoothDevice> connectedDevices = audioProxy
+                .getDevicesMatchingConnectionStates(STATES_CONNECTED);
+        for (BluetoothDevice connectedDevice : connectedDevices) {
+            audioProxy.disconnect(connectedDevice);
+        }
+
+        return true;
     }
 
-    private boolean performActionForDevice(int itemId, BluetoothDevice device) {
+    private void onCreateOptionsMenuForDevice(Menu menu, BluetoothDevice device) {
+        getMenuInflater().inflate(R.menu.device_menu, menu);
+
+        // Remove unsupported device menu items.
+        if (Build.VERSION.SDK_INT < NfcUtils.MIN_SDK_VERSION) {
+            menu.findItem(R.id.write_tag).setVisible(false);
+        }
+
+        final boolean isDeviceVisible = mDeviceAdapter.isDeviceVisible(device);
+
+        menu.findItem(R.id.hide).setVisible(isDeviceVisible);
+        menu.findItem(R.id.show).setVisible(!isDeviceVisible);
+    }
+
+    private boolean onContextItemSelectedForDevice(MenuItem item, BluetoothDevice device) {
         final String deviceName = mDeviceManagementBinder.getDeviceName(device);
         final int deviceId = BluetoothDeviceUtils.getDeviceId(device);
 
-        switch (itemId) {
-            case R.string.menu_remove: {
-                final DialogFragment removeFragment = RemoveDialogFragment.newInstance(deviceId,
-                        deviceName);
-                removeFragment.show(getSupportFragmentManager(), DIALOG_REMOVE);
+        switch (item.getItemId()) {
+            case R.id.hide:
+                RemoveDialogFragment.newInstance(deviceId, deviceName).show(
+                        getSupportFragmentManager(), DIALOG_HIDE);
                 return true;
-            }
-            case R.string.menu_rename: {
-                final DialogFragment renameFragment = RenameDialogFragment.newInstance(deviceId,
-                        deviceName);
-                renameFragment.show(getSupportFragmentManager(), DIALOG_RENAME);
+            case R.id.show:
+                setDeviceVisibility(deviceId, true);
                 return true;
-            }
-            case R.string.menu_write_tag: {
-                final Uri.Builder builder = new Uri.Builder().scheme(URI_SCHEME)
-                        .authority(URI_AUTHORITY)
-                        .appendQueryParameter(QUERY_VERSION, Integer.toString(TAG_VERSION))
-                        .appendQueryParameter(QUERY_ADDRESS, device.getAddress());
-
-                if (!device.getName().equals(deviceName)) {
-                    builder.appendQueryParameter(QUERY_NAME, deviceName);
-                }
-
-                final Intent intent = new Intent(this, WriteTagActivity.class);
-                intent.putExtra(WriteTagActivity.EXTRA_URI, builder.build());
-                intent.putExtra(WriteTagActivity.EXTRA_PACKAGE, getPackageName());
-
-                startActivity(intent);
+            case R.id.rename:
+                RenameDialogFragment.newInstance(deviceId, deviceName).show(
+                        getSupportFragmentManager(), DIALOG_RENAME);
                 return true;
-            }
+            case R.id.write_tag:
+                showWriteTagActivity(device, deviceName);
+                return true;
         }
 
         return false;
+    }
+
+    private void showWriteTagActivity(BluetoothDevice device, final String deviceName) {
+        final Uri.Builder builder = new Uri.Builder().scheme(URI_SCHEME)
+                .authority(URI_AUTHORITY)
+                .appendQueryParameter(QUERY_VERSION, Integer.toString(TAG_VERSION))
+                .appendQueryParameter(QUERY_ADDRESS, device.getAddress());
+
+        if (!device.getName().equals(deviceName)) {
+            builder.appendQueryParameter(QUERY_NAME, deviceName);
+        }
+
+        final Intent intent = new Intent(this, WriteTagActivity.class);
+        intent.putExtra(WriteTagActivity.EXTRA_URI, builder.build());
+        intent.putExtra(WriteTagActivity.EXTRA_PACKAGE, getPackageName());
+
+        startActivity(intent);
     }
 
     public void setDeviceName(int deviceId, String name) {
@@ -365,6 +397,8 @@ public class MainActivity extends FragmentActivity {
     private void onAudioProxyAvailable() {
         mAudioProxy = mDeviceManagementBinder.getAudioProxy();
         mDeviceAdapter.setAudioProxy(mAudioProxy);
+
+        // TODO: Manage a "loading" spinner.
     }
 
     private void attemptEnableBluetooth() {
@@ -373,12 +407,42 @@ public class MainActivity extends FragmentActivity {
         }
     }
 
-    private void onDeviceManagerStateChanged() {
+    private void toggleDeviceState(View v, BluetoothDevice device) {
+        final TextView status = (TextView) v.findViewById(android.R.id.text2);
+        final int state = mAudioProxy.getConnectionState(device);
+
+        if (state == BluetoothA2dpCompat.STATE_DISCONNECTED) {
+            status.setText(R.string.state_connecting);
+            mAudioProxy.connect(device);
+        } else {
+            status.setText(R.string.state_disconnecting);
+            mAudioProxy.disconnect(device);
+        }
+    }
+
+    private void onDeviceStateChanged() {
         mDeviceAdapter.notifyDataSetChanged();
 
         final boolean checked = mDeviceManagementBinder.getShowNotification();
         final CheckBox checkBox = (CheckBox) findViewById(R.id.show_notification);
         checkBox.setChecked(checked);
+    }
+
+    private void showContextMenu(View v) {
+        if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
+            HoneycombHelper.showPopupContextMenu(this, v);
+        } else {
+            v.showContextMenu();
+        }
+    }
+
+    private void showContextMenuForDevice(View v, BluetoothDevice device) {
+        if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
+            HoneycombHelper.showPopupContextMenuForDevice(MainActivity.this, v, device);
+        } else {
+            final ListView listView = (ListView) findViewById(R.id.list_view);
+            listView.showContextMenuForChild((View) v.getParent());
+        }
     }
 
     protected void contactDeveloper() {
@@ -420,39 +484,28 @@ public class MainActivity extends FragmentActivity {
         @Override
         public void onClick(View v) {
             switch (v.getId()) {
-                case R.id.enable: {
+                case R.id.enable:
                     attemptEnableBluetooth();
-                } break;
-                case R.id.menu: {
-                    if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
-                        HoneycombHelper.showOptionsMenu(MainActivity.this, v, R.menu.main_menu);
-                    } else {
-                        v.showContextMenu();
-                    }
-                } break;
-                case R.id.list_entry: {
-                    final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
-                    final int state = mAudioProxy.getConnectionState(device);
-                    final TextView status = (TextView) v.findViewById(android.R.id.text2);
+                    break;
+                case R.id.menu:
+                    showContextMenu(v);
+                    break;
+            }
+        }
+    };
 
-                    if (state == BluetoothA2dpCompat.STATE_DISCONNECTED) {
-                        status.setText(R.string.state_connecting);
-                        mAudioProxy.connect(device);
-                    } else {
-                        status.setText(R.string.state_disconnecting);
-                        mAudioProxy.disconnect(device);
-                    }
-                } break;
-                case R.id.device_settings: {
-                    final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
+    private final OnClickListener mOnDeviceClickListener = new OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            final BluetoothDevice device = (BluetoothDevice) v.getTag(R.id.tag_device);
 
-                    if (Build.VERSION.SDK_INT >= HoneycombHelper.MIN_API_LEVEL) {
-                        HoneycombHelper.showDeviceSettingsMenu(MainActivity.this, v, device);
-                    } else {
-                        final ListView listView = (ListView) findViewById(R.id.list_view);
-                        listView.showContextMenuForChild((View) v.getParent());
-                    }
-                } break;
+            switch (v.getId()) {
+                case R.id.list_entry:
+                    toggleDeviceState(v, device);
+                    break;
+                case R.id.device_settings:
+                    showContextMenuForDevice(v, device);
+                    break;
             }
         }
     };
@@ -527,7 +580,7 @@ public class MainActivity extends FragmentActivity {
         protected void handleMessage(Message msg, MainActivity parent) {
             switch (msg.what) {
                 case STATE_CHANGED:
-                    parent.onDeviceManagerStateChanged();
+                    parent.onDeviceStateChanged();
                     break;
                 case PROXY_AVAILABLE:
                     parent.onAudioProxyAvailable();
@@ -548,7 +601,7 @@ public class MainActivity extends FragmentActivity {
     private static class HoneycombHelper {
         public static final int MIN_API_LEVEL = 11;
 
-        public static void showOptionsMenu(final MainActivity parent, View anchor, int menuRes) {
+        public static void showPopupContextMenu(final MainActivity parent, View anchor) {
             final PopupMenu optionsMenu = new PopupMenu(parent, anchor);
             optionsMenu.setOnMenuItemClickListener(new OnMenuItemClickListener() {
                 @Override
@@ -558,22 +611,22 @@ public class MainActivity extends FragmentActivity {
             });
 
             final Menu menu = optionsMenu.getMenu();
-            final MenuInflater inflater = optionsMenu.getMenuInflater();
-            inflater.inflate(menuRes, menu);
+            parent.onCreateOptionsMenu(menu, anchor, null);
             optionsMenu.show();
         }
 
-        public static void showDeviceSettingsMenu(final MainActivity parent, View anchor,
+        public static void showPopupContextMenuForDevice(final MainActivity parent, View anchor,
                 final BluetoothDevice device) {
             final PopupMenu deviceMenu = new PopupMenu(parent, anchor);
             deviceMenu.setOnMenuItemClickListener(new OnMenuItemClickListener() {
                 @Override
                 public boolean onMenuItemClick(MenuItem item) {
-                    return parent.performActionForDevice(item.getItemId(), device);
+                    return parent.onContextItemSelectedForDevice(item, device);
                 }
             });
 
-            parent.onCreateDeviceSettingsMenu(deviceMenu.getMenu(), device);
+            final Menu menu = deviceMenu.getMenu();
+            parent.onCreateOptionsMenuForDevice(menu, device);
             deviceMenu.show();
         }
     }

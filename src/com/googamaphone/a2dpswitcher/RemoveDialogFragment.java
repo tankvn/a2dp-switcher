@@ -40,7 +40,7 @@ public class RemoveDialogFragment extends DialogFragment {
 
         return new AlertDialog.Builder(getActivity())
                 .setIcon(android.R.drawable.ic_dialog_info)
-                .setTitle(R.string.menu_remove)
+                .setTitle(R.string.menu_hide)
                 .setMessage(removeMessage)
                 .setPositiveButton(android.R.string.ok, onClickListener)
                 .setNegativeButton(android.R.string.cancel, null)

@@ -44,6 +44,8 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private BluetoothA2dpCompat mAudioProxy;
     private OnClickListener mSettingsClickListener;
 
+    private boolean mShowAllDevices;
+
     public BluetoothListAdapter(Context context, int viewResId, int labelResId, int statusResId) {
         mContext = context;
         mViewResId = viewResId;
@@ -51,6 +53,8 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         mStatusResId = statusResId;
 
         mLayoutInflater = LayoutInflater.from(context);
+
+        mShowAllDevices = false;
     }
 
     public void setOnSettingsClickListener(OnClickListener listener) {
@@ -109,6 +113,12 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         labelView.setText(deviceName);
         statusView.setText(statusResId);
 
+        if (mShowAllDevices && !isDeviceVisible(device)) {
+            statusView.setBackgroundColor(0xFFFF0000);
+        } else {
+            statusView.setBackgroundColor(0);
+        }
+
         return convertView;
     }
 
@@ -135,6 +145,20 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         mAudioProxy = audioProxy;
 
         reloadDevices();
+    }
+
+    public void showAllDevices(boolean showAllDevices) {
+        final boolean previousValue = mShowAllDevices;
+
+        mShowAllDevices = showAllDevices;
+
+        if (showAllDevices != previousValue) {
+            reloadDevices();
+        }
+    }
+
+    public boolean isShowingAllDevices() {
+        return mShowAllDevices;
     }
 
     public void register() {
@@ -172,9 +196,13 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         final List<BluetoothDevice> devices = mAudioProxy
                 .getDevicesMatchingConnectionStates(ALL_A2DP_STATES);
 
-        for (BluetoothDevice device : devices) {
-            if (isDeviceVisible(device)) {
-                mAudioDevices.add(device);
+        if (mShowAllDevices) {
+            mAudioDevices.addAll(devices);
+        } else {
+            for (BluetoothDevice device : devices) {
+                if (isDeviceVisible(device)) {
+                    mAudioDevices.add(device);
+                }
             }
         }
 

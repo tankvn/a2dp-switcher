@@ -10,9 +10,9 @@
         android:icon="@drawable/ic_menu_preferences"
         android:title="@string/bluetooth_settings"/>
     <item
-        android:id="@+id/manage_hidden"
-        android:title="@string/manage_hidden"
-        android:visible="false"/>
+        android:id="@+id/show_hidden"
+        android:checkable="true"
+        android:title="@string/show_hidden"/>
     <item
         android:id="@+id/settings"
         android:title="@string/settings"
