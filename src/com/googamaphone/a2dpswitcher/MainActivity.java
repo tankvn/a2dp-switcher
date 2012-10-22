@@ -16,6 +16,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -26,6 +28,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.RemoteException;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.v4.app.FragmentActivity;
 import android.view.ContextMenu;
@@ -56,6 +59,8 @@ public class MainActivity extends FragmentActivity {
     public static final String URI_AUTHORITY = "connect";
     public static final String URI_SCHEME = "a2dp";
 
+    private static final String PREF_SHOW_ALL_DEVICES = "show_all_devices";
+
     /** The version of encoding used for NFC tags. */
     private static final int TAG_VERSION = 1;
 
@@ -66,6 +71,7 @@ public class MainActivity extends FragmentActivity {
     private static final String DIALOG_HIDE = "dialog_remove";
     private static final String DIALOG_RENAME = "dialog_rename";
 
+    private SharedPreferences mPrefs;
     private BluetoothAdapter mBluetoothAdapter;
     private ManagedBluetoothListAdapter mDeviceAdapter;
     private BluetoothA2dpCompat mAudioProxy;
@@ -79,10 +85,14 @@ public class MainActivity extends FragmentActivity {
 
         setContentView(R.layout.activity_main);
 
+        mPrefs = PreferenceManager.getDefaultSharedPreferences(this);
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        final boolean showAllDevices = mPrefs.getBoolean(PREF_SHOW_ALL_DEVICES, false);
 
         mDeviceAdapter = new ManagedBluetoothListAdapter(this);
         mDeviceAdapter.setOnSettingsClickListener(mOnDeviceClickListener);
+        mDeviceAdapter.showAllDevices(showAllDevices);
 
         final View menuButton = findViewById(R.id.menu);
         menuButton.setOnClickListener(mOnClickListener);
@@ -304,6 +314,9 @@ public class MainActivity extends FragmentActivity {
                 final boolean checked = !item.isChecked();
                 item.setChecked(checked);
                 mDeviceAdapter.showAllDevices(checked);
+                final Editor editor = mPrefs.edit();
+                editor.putBoolean(PREF_SHOW_ALL_DEVICES, checked);
+                editor.apply();
                 return true;
             case R.id.settings:
                 // TODO: Implement preferences.
@@ -390,8 +403,9 @@ public class MainActivity extends FragmentActivity {
         mDeviceManagementBinder.setNameForDevice(deviceId, name);
     }
 
-    public void setDeviceVisibility(int deviceId, boolean isVisible) {
-        mDeviceManagementBinder.setDeviceVisibility(deviceId, false);
+    public void setDeviceVisibility(int deviceId, boolean visible) {
+        mDeviceManagementBinder.setDeviceVisibility(deviceId, visible);
+        mDeviceAdapter.reloadDevices();
     }
 
     private void onAudioProxyAvailable() {

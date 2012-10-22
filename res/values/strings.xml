@@ -2,30 +2,37 @@
 
     <string name="app_name">A2DP Switcher</string>
     <string name="title_activity_main">Streaming devices</string>
-    
+    <string name="confirm_hide_device">Are you sure you want to hide \"%1$s\"?</string>
+    <string name="enable_bluetooth">Bluetooth is currently disabled. Enable it to show available devices.</string>
+    <string name="enable">Enable</string>
+    <string name="menu">Menu</string>
+
     <!-- Device menu -->
     <string name="menu_hide">Hide from list</string>
     <string name="menu_show">Show in list</string>
     <string name="menu_rename">Rename device…</string>
     <string name="menu_write_tag">Write NFC tag…</string>
 
-    <string name="device_name">Device name</string>
-    <string name="confirm_remove_device">Are you sure you want to remove \"%1$s\"?</string>
-    <string name="enable_bluetooth">Bluetooth is currently disabled. Enable it to show available devices.</string>
-    <string name="enable">Enable</string>
+    <!-- Label shown in place of the list view when no devices are connected. -->
     <string name="not_paired">Your phone is not paired with any A2DP devices.</string>
-    <string name="connected">Connected</string>
+
+    <!-- Label for the check box that controls the "Current device" notification. -->
     <string name="show_notification">Show notification</string>
-    <string name="menu">Menu</string>
-    
+
+    <!-- Hint text for the device name text field in the rename dialog. -->
+    <string name="device_name">Device name</string>
+
+    <!-- Content description for the check mark image in the connecting dialog. -->
+    <string name="connected">Connected</string>
+
     <!-- Notification -->
     <string name="notification_ticker">A2DP Switcher active</string>
     <string name="touch_to_change">Touch to change streaming device.</string>
-    <string name="no_device">No device</string>
+    <string name="no_device">No device connected</string>
     <string name="notify_missing_bluetooth">Bluetooth not supported</string>
     <string name="notify_bluetooth_disabled">Bluetooth is disabled</string>
     <string name="notify_missing_audio_service">Audio service not available</string>
-    
+
     <!-- Failure states -->
     <string name="failure_bluetooth">This device does not support Bluetooth.</string>
     <string name="failure_enable_bluetooth">Failed to enable Bluetooth.</string>
@@ -34,7 +41,7 @@
     <string name="failure_connect_device">Failed to connect to Bluetooth device.</string>
     <string name="failure_write_tag">Failed to format NFC tag.</string>
     <string name="failure_read_tag">Failed to read NFC tag.</string>
-    
+
     <!-- Progress states -->
     <string name="progress_reading_tag">Reading NFC tag…</string>
     <string name="progress_enable_bluetooth">Turning on Bluetooth…</string>
@@ -42,7 +49,7 @@
     <string name="progress_bond_device">Pairing Bluetooth device…</string>
     <string name="progress_connect_device">Connecting to device…</string>
     <string name="progress_write_tag">Formatting tag…</string>
-    
+
     <!-- Connection states -->
     <string name="state_connected">Connected</string>
     <string name="state_connecting">Connecting</string>
@@ -55,10 +62,10 @@
     <string name="scan_a_tag">Scan a tag</string>
     <string name="write_successful">Wrote pairing information to tag</string>
     <string name="write_failed">Failed to write pairing information</string>
-    
+
     <!-- Main menu -->
-    <string name="disconnect_all">Disconnect all</string>
-    <string name="bluetooth_settings">Bluetooth settings</string>
+    <string name="disconnect_all">Disconnect all devices</string>
+    <string name="bluetooth_settings">Open Bluetooth settings</string>
     <string name="show_hidden">Show hidden devices</string>
     <string name="settings">Settings</string>
 

@@ -36,7 +36,7 @@ public class RemoveDialogFragment extends DialogFragment {
             }
         };
 
-        final String removeMessage = getString(R.string.confirm_remove_device, deviceName);
+        final String removeMessage = getString(R.string.confirm_hide_device, deviceName);
 
         return new AlertDialog.Builder(getActivity())
                 .setIcon(android.R.drawable.ic_dialog_info)

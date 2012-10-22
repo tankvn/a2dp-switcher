@@ -114,9 +114,13 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         statusView.setText(statusResId);
 
         if (mShowAllDevices && !isDeviceVisible(device)) {
-            statusView.setBackgroundColor(0xFFFF0000);
+            convertView.setBackgroundColor(0x33000000);
+            labelView.setTextColor(0x99FFFFFF);
+            statusView.setTextColor(0x66FFFFFF);
         } else {
-            statusView.setBackgroundColor(0);
+            convertView.setBackgroundColor(0);
+            labelView.setTextColor(0xFFFFFFFF);
+            statusView.setTextColor(0xCCFFFFFF);
         }
 
         return convertView;
