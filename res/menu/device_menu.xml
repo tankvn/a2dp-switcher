@@ -10,7 +10,8 @@
         android:title="@string/menu_rename"/>
     <item
         android:id="@+id/write_tag"
-        android:title="@string/menu_write_tag"/>
+        android:title="@string/menu_write_tag"
+        android:visible="false" />
     <item
         android:id="@+id/hide"
         android:title="@string/menu_hide"/>

@@ -23,6 +23,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.DataSetObserver;
 import android.net.Uri;
+import android.nfc.NfcAdapter;
+import android.nfc.NfcManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -348,8 +350,13 @@ public class MainActivity extends FragmentActivity {
         getMenuInflater().inflate(R.menu.device_menu, menu);
 
         // Remove unsupported device menu items.
-        if (Build.VERSION.SDK_INT < NfcUtils.MIN_SDK_VERSION) {
-            menu.findItem(R.id.write_tag).setVisible(false);
+        if (Build.VERSION.SDK_INT >= NfcUtils.MIN_SDK_VERSION) {
+            final NfcManager nfcManager = (NfcManager) getSystemService(NFC_SERVICE);
+            final NfcAdapter nfcAdapter = nfcManager.getDefaultAdapter();
+
+            if (nfcAdapter != null) {
+                menu.findItem(R.id.write_tag).setVisible(true);
+            }
         }
 
         final boolean isDeviceVisible = mDeviceAdapter.isDeviceVisible(device);
