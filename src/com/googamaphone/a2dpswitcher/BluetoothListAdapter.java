@@ -142,7 +142,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
 
         Log.e(TAG, "Unknown Bluetooth state: " + state);
 
-        return 0;
+        return R.string.state_disconnected;
     }
 
     public void setAudioProxy(BluetoothA2dpCompat audioProxy) {
