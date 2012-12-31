@@ -1,7 +1,24 @@
+/*
+ * Copyright (C) 2013 Alan Viverette
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 
 package com.googamaphone.a2dpswitcher;
 
-import java.util.Set;
+import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.BluetoothDeviceCompatUtils;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
@@ -15,25 +32,56 @@ import android.content.ServiceConnection;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.os.RemoteException;
+import android.util.Pair;
 import android.widget.TextView;
 
-import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.compat.BluetoothDeviceCompatUtils;
-import com.googamaphone.utils.WeakReferenceHandler;
+import java.util.Set;
 
+/**
+ * Activity used to read NFC tags encoded by this app.
+ * <p>
+ * After parsing the tag data, this activity performs several checks and
+ * attempts to resolve any issues before connecting to a Bluetooth device.
+ * <ol>
+ * <li>Is Bluetooth enabled on this device? Turn on Bluetooth.
+ * <li>Is the A2DP device management service running? Bind to it.
+ * <li>Is this device bonded to the Bluetooth device? Bond to it.
+ * <li>Is audio output connected to the Bluetooth device? Connect it.
+ * </ol>
+ */
 public class ReadTagActivity extends Activity {
+    /** Delay in milliseconds before finishing after a successful read. */
     private static final long DELAY_SUCCESS = 1000;
+
+    /** Delay in milliseconds before finishing after a failed read. */
     private static final long DELAY_FAILURE = 2000;
 
+    /** Intent filter used to monitor changes in Bluetooth state. */
+    private static final IntentFilter FILTER_STATE_CHANGED = new IntentFilter();
+
+    static {
+        FILTER_STATE_CHANGED.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        FILTER_STATE_CHANGED.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        FILTER_STATE_CHANGED.addAction(BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED);
+    }
+
+    /** The default Bluetooth adapter. */
     private BluetoothAdapter mBluetoothAdapter;
+
+    /** The audio proxy used to connect A2DP streaming. */
     private BluetoothA2dpCompat mAudioProxy;
+
+    /** Connection to the A2DP device management service. */
+    // TODO(alanv): This seems like overkill since they're in the same package.
     private DeviceManagementBinder mDeviceManagementBinder;
 
+    /** The address of the target device, as read from the NFC tag. */
     private String mTargetAddress;
+
+    /** The name of the target device, as read from the NFC tag. */
     private String mTargetName;
 
     @Override
@@ -44,12 +92,7 @@ public class ReadTagActivity extends Activity {
 
         showProgress(R.string.progress_reading_tag);
 
-        final IntentFilter filter = new IntentFilter();
-        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        filter.addAction(BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED);
-
-        registerReceiver(mBroadcastReceiver, filter);
+        registerReceiver(mBroadcastReceiver, FILTER_STATE_CHANGED);
 
         if (!handleIntent()) {
             showFailure(R.string.failure_read_tag);
@@ -70,24 +113,44 @@ public class ReadTagActivity extends Activity {
         }
     }
 
+    /**
+     * Parses the target device's address and name from the NFC tag.
+     *
+     * @return {@code true} on success.
+     */
     private boolean handleIntent() {
         final Intent intent = getIntent();
         if (intent == null) {
             return false;
         }
 
-        if (!NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
+        final String action = intent.getAction();
+        if (!NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
             return false;
         }
 
         final Uri uri = intent.getData();
-        if ((uri == null) || !parseUri(uri)) {
+        if (uri == null) {
             return false;
         }
+
+        final Pair<String, String> data = A2dpSwitcherUtils.parseUri(uri);
+        if (data == null) {
+            return false;
+        }
+
+        mTargetAddress = data.first;
+        mTargetName = data.second;
 
         return true;
     }
 
+    /**
+     * Called after connecting to the device management service. Registers a
+     * callback to listen for changes in device data.
+     *
+     * @param binder The binder that was connected.
+     */
     private void onDeviceManagerConnected(DeviceManagementBinder binder) {
         mDeviceManagementBinder = binder;
         mDeviceManagementBinder.registerCallback(mDeviceDataCallback);
@@ -104,11 +167,13 @@ public class ReadTagActivity extends Activity {
      * </ul>
      */
     private void resumeConnectingToDevice() {
+        // Is the Bluetooth adapter enabled?
         if (!mBluetoothAdapter.isEnabled()) {
             attemptEnableBluetooth();
             return;
         }
 
+        // Are we bound to the device management service?
         if (mDeviceManagementBinder == null) {
             attemptBindService();
             return;
@@ -117,103 +182,26 @@ public class ReadTagActivity extends Activity {
         final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mTargetAddress);
         final Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
 
+        // Are we bonded to the Bluetooth device?
         if (!bondedDevices.contains(device)) {
             attemptBondDevice(device);
             return;
         }
 
-        if (mTargetName != null) {
-            mDeviceManagementBinder.setNameForDevice(device, mTargetName);
-        }
-
         attemptConnectDevice(device);
     }
 
+    /**
+     * Attempts to bind to the A2DP device management service.
+     */
     private void attemptBindService() {
         final Intent serviceIntent = new Intent(this, BluetoothSwitcherService.class);
         bindService(serviceIntent, mServiceConnection, 0);
     }
 
-    private boolean parseUri(Uri uri) {
-        final String version = uri.getQueryParameter(MainActivity.QUERY_VERSION);
-        if (version == null) {
-            return getAddressVersion0(uri);
-        }
-
-        try {
-            final int versionCode = Integer.parseInt(version);
-            if (versionCode == 1) {
-                return getAddressVersion1(uri);
-            }
-        } catch (NumberFormatException e) {
-            e.printStackTrace();
-        }
-
-        // Invalid version.
-        return false;
-    }
-
-    private boolean getAddressVersion0(Uri uri) {
-        final String path = uri.getPath();
-        if ((path == null) || (path.length() <= 1)) {
-            // Missing address.
-            return true;
-        }
-
-        final String address = path.substring(1);
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
-            // Invalid address.
-            return true;
-        }
-
-        mTargetAddress = address;
-        mTargetName = null;
-
-        return true;
-    }
-
-    private boolean getAddressVersion1(Uri uri) {
-        final String address = uri.getQueryParameter(MainActivity.QUERY_ADDRESS);
-        if ((address == null) || !BluetoothAdapter.checkBluetoothAddress(address)) {
-            // Invalid or missing address.
-            return true;
-        }
-
-        if (mBluetoothAdapter == null) {
-            // This device does not support Bluetooth.
-            return true;
-        }
-
-        mTargetAddress = address;
-        mTargetName = uri.getQueryParameter(MainActivity.QUERY_NAME);
-
-        return true;
-    }
-
-    private void showProgress(int resId) {
-        setContentView(R.layout.dialog_waiting);
-
-        final TextView message = (TextView) findViewById(R.id.message);
-        message.setText(resId);
-    }
-
-    private void showSuccess() {
-        setContentView(R.layout.dialog_success);
-
-        mHandler.delayFinish(DELAY_SUCCESS);
-    }
-
-    private void showFailure(int resId) {
-        setContentView(R.layout.dialog_failure);
-
-        final TextView message = (TextView) findViewById(R.id.message);
-        message.setText(resId);
-
-        mHandler.delayFinish(DELAY_FAILURE);
-
-        getWindow().getDecorView().requestLayout();
-    }
-
+    /**
+     * Attempts to enable Bluetooth on this device.
+     */
     private void attemptEnableBluetooth() {
         if (!mBluetoothAdapter.enable()) {
             showFailure(R.string.failure_enable_bluetooth);
@@ -222,6 +210,11 @@ public class ReadTagActivity extends Activity {
         }
     }
 
+    /**
+     * Attempts to bond to the specified Bluetooth device.
+     *
+     * @param device The device to bond.
+     */
     private void attemptBondDevice(BluetoothDevice device) {
         if (!BluetoothDeviceCompatUtils.createBond(device)) {
             showFailure(R.string.failure_bond_device);
@@ -230,9 +223,19 @@ public class ReadTagActivity extends Activity {
         }
     }
 
+    /**
+     * Attempts to connect audio output to the specified Bluetooth device.
+     *
+     * @param device The device to connect.
+     */
     private void attemptConnectDevice(BluetoothDevice device) {
-        final int state = mAudioProxy.getConnectionState(device);
+        // If the device has a name, let the management service know.
+        // TODO: Maybe ask the user if they want to rename the device?
+        if (mTargetName != null) {
+            mDeviceManagementBinder.setNameForDevice(device, mTargetName);
+        }
 
+        final int state = mAudioProxy.getConnectionState(device);
         switch (state) {
             case BluetoothA2dpCompat.STATE_CONNECTED:
             case BluetoothA2dpCompat.STATE_PLAYING:
@@ -241,19 +244,69 @@ public class ReadTagActivity extends Activity {
                 return;
         }
 
-        if (!mAudioProxy.connect(device)) {
-            showFailure(R.string.failure_connect_device);
-        } else {
+        // Attempt to connect. If we fail immediately, let the user know.
+        if (mAudioProxy.connect(device)) {
             showProgress(R.string.progress_connect_device);
+        } else {
+            showFailure(R.string.failure_connect_device);
         }
     }
 
+    /**
+     * Called after connecting to the audio proxy. Attempts to resume connecting
+     * to the Bluetooth device.
+     */
     private void onAudioProxyAvailable() {
         mAudioProxy = mDeviceManagementBinder.getAudioProxy();
 
         resumeConnectingToDevice();
     }
 
+    /**
+     * Sets the layout to progress with the specified message.
+     *
+     * @param resId The message to display.
+     */
+    private void showProgress(int resId) {
+        setContentView(R.layout.dialog_waiting);
+
+        final TextView message = (TextView) findViewById(R.id.message);
+        message.setText(resId);
+    }
+
+    /**
+     * Sets the layout to success, sets the activity result to okay, and
+     * finishes after a delay.
+     */
+    private void showSuccess() {
+        setContentView(R.layout.dialog_success);
+
+        setResult(RESULT_OK);
+        mHandler.postDelayed(mDelayedFinish, DELAY_SUCCESS);
+    }
+
+    /**
+     * Sets the layout to failure with the specified message, sets the activity
+     * result to cancelled, and finishes after a delay.
+     *
+     * @param resId The message to display.
+     */
+    private void showFailure(int resId) {
+        setContentView(R.layout.dialog_failure);
+
+        final TextView message = (TextView) findViewById(R.id.message);
+        message.setText(resId);
+
+        setResult(RESULT_CANCELED);
+        mHandler.postDelayed(mDelayedFinish, DELAY_FAILURE);
+
+        // TODO: Is this necessary? Probably not...
+        getWindow().getDecorView().requestLayout();
+    }
+
+    /**
+     * Handles changes in the Bluetooth device connection state.
+     */
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -312,6 +365,9 @@ public class ReadTagActivity extends Activity {
         }
     };
 
+    /**
+     * Handles changes in the audio proxy connection state.
+     */
     private final DeviceDataCallback mDeviceDataCallback = new DeviceDataCallback.Stub() {
         @Override
         public void onDeviceDataChanged() throws RemoteException {
@@ -320,10 +376,18 @@ public class ReadTagActivity extends Activity {
 
         @Override
         public void onAudioProxyAvailable() throws RemoteException {
-            mHandler.onAudioProxyAvailable();
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    ReadTagActivity.this.onAudioProxyAvailable();
+                }
+            });
         }
     };
 
+    /**
+     * Handles changes in the A2DP device management service connection state.
+     */
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -339,34 +403,15 @@ public class ReadTagActivity extends Activity {
         }
     };
 
-    private final ReadTagHandler mHandler = new ReadTagHandler(this);
+    private final Handler mHandler = new Handler();
 
-    private static class ReadTagHandler extends WeakReferenceHandler<ReadTagActivity> {
-        private static final int DELAYED_FINISH = 1;
-        private static final int PROXY_AVAILABLE = 2;
-
-        public ReadTagHandler(ReadTagActivity parent) {
-            super(parent);
-        }
-
+    /**
+     * Runnable used to finish the app after a delay.
+     */
+    private final Runnable mDelayedFinish = new Runnable() {
         @Override
-        protected void handleMessage(Message msg, ReadTagActivity parent) {
-            switch (msg.what) {
-                case DELAYED_FINISH:
-                    parent.finish();
-                    break;
-                case PROXY_AVAILABLE:
-                    parent.onAudioProxyAvailable();
-                    break;
-            }
+        public void run() {
+            finish();
         }
-
-        public void delayFinish(long delayMillis) {
-            sendEmptyMessageDelayed(DELAYED_FINISH, delayMillis);
-        }
-
-        public void onAudioProxyAvailable() {
-            sendEmptyMessage(PROXY_AVAILABLE);
-        }
-    }
+    };
 }

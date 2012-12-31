@@ -65,7 +65,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".WriteTagActivity"
+            android:name="com.googamaphone.a2dpswitcher.Activity"
             android:exported="false"
             android:label="@string/scan_a_tag"
             android:theme="@style/DialogTheme" />

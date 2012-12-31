@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Google Inc.
+ * Copyright (C) 2013 Alan Viverette
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,8 @@
 
 package com.googamaphone.a2dpswitcher;
 
+import com.googamaphone.utils.NfcUtils;
+
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -28,23 +30,39 @@ import android.nfc.NfcManager;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.os.Bundle;
-import android.os.Message;
+import android.os.Handler;
 import android.widget.TextView;
 
-import com.googamaphone.utils.NfcUtils;
-import com.googamaphone.utils.WeakReferenceHandler;
-
+/**
+ * Activity used for writing URIs to NFC tags.
+ * <p>
+ * Must specify the URI to write with extra {@link #EXTRA_URI}. Optionally, set
+ * {@link #EXTRA_PACKAGE} to specify the app package that should be used to
+ * handle the NFC tag.
+ */
 public class WriteTagActivity extends Activity {
+    /** Extra representing the URI to write to an NFC tag. */
     public static final String EXTRA_URI = "uri";
+
+    /** Extra representing the app package that should handle the NFC tag. */
     public static final String EXTRA_PACKAGE = "package";
 
-    private static final long DELAY_SUCCESS = 1000;
-    private static final long DELAY_FAILURE = 2000;
-
+    /** Broadcast action sent by the system when an NFC tag is detected. */
     private static final String BROADCAST_WRITE_TAG = "com.googlecode.eyesfree.nfc.WRITE_TAG";
 
+    /** Delay in milliseconds before finishing after a successful write. */
+    private static final long DELAY_SUCCESS = 1000;
+
+    /** Delay in milliseconds before finishing after a failed write. */
+    private static final long DELAY_FAILURE = 2000;
+
+    /** The default NFC adapter. */
     private NfcAdapter mNfcAdapter;
+
+    /** The URI to write to the NFC tag. */
     private Uri mUri;
+
+    /** The package to write to the NFC tag. */
     private String mPackage;
 
     @Override
@@ -53,17 +71,25 @@ public class WriteTagActivity extends Activity {
 
         setContentView(R.layout.dialog_waiting);
 
-        ((TextView) findViewById(R.id.message)).setText(R.string.progress_write_tag);
+        final TextView message = (TextView) findViewById(R.id.message);
+        message.setText(R.string.progress_write_tag);
 
-        final NfcManager nfcManager = (NfcManager) getSystemService(NFC_SERVICE);
-
-        mNfcAdapter = nfcManager.getDefaultAdapter();
-        mUri = getIntent().getParcelableExtra(EXTRA_URI);
-        mPackage = getIntent().getStringExtra(EXTRA_PACKAGE);
+        final Intent intent = getIntent();
+        mUri = intent.getParcelableExtra(EXTRA_URI);
+        mPackage = intent.getStringExtra(EXTRA_PACKAGE);
 
         if (mUri == null) {
             finish();
+            return;
         }
+
+        final NfcManager nfcManager = (NfcManager) getSystemService(NFC_SERVICE);
+        if (nfcManager == null) {
+            finish();
+            return;
+        }
+
+        mNfcAdapter = nfcManager.getDefaultAdapter();
     }
 
     @Override
@@ -80,12 +106,17 @@ public class WriteTagActivity extends Activity {
         unregisterForegroundDispatch();
     }
 
+    /**
+     * Enables foreground dispatch and registers a broadcast listener so that
+     * the system sends {@link #BROADCAST_WRITE_TAG} and this activity is
+     * notified when a supported NFC tag is detected.
+     */
     private void registerForegroundDispatch() {
         final Intent intent = new Intent(BROADCAST_WRITE_TAG).setPackage(getPackageName());
         final PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
         final String[][] techFilters = new String[][] {
-            {
-                Ndef.class.getName()
+                {
+                        Ndef.class.getName()
             }
         };
 
@@ -94,37 +125,61 @@ public class WriteTagActivity extends Activity {
         mNfcAdapter.enableForegroundDispatch(this, pendingIntent, null, techFilters);
     }
 
+    /**
+     * Disables foreground dispatch and unregisters the broadcast listener.
+     *
+     * @see #registerForegroundDispatch()
+     */
     private void unregisterForegroundDispatch() {
         mNfcAdapter.disableForegroundDispatch(this);
 
         unregisterReceiver(mNfcReceiver);
     }
 
+    /**
+     * Called when a supported NFC tag is detected. Attempts to write
+     * {@link #mUri} and {@link #mPackage} to the tag.
+     *
+     * @param detectedTag The detected NFC tag.
+     */
     private void onTagDetected(Tag detectedTag) {
         if (NfcUtils.writeUriToTag(detectedTag, mUri, mPackage)) {
-            setResult(RESULT_OK);
-            showSuccess();
+            showSuccessAndFinish();
         } else {
-            setResult(RESULT_CANCELED);
-            showFailure(R.string.failure_write_tag);
+            showFailureAndFinish(R.string.failure_write_tag);
         }
     }
 
-    private void showSuccess() {
+    /**
+     * Sets the layout to success, sets the activity result to okay, and
+     * finishes after a delay.
+     */
+    private void showSuccessAndFinish() {
         setContentView(R.layout.dialog_success);
 
-        mHandler.delayFinish(DELAY_SUCCESS);
+        setResult(RESULT_OK);
+        mHandler.postDelayed(mDelayedFinish, DELAY_SUCCESS);
     }
 
-    private void showFailure(int resId) {
+    /**
+     * Sets the layout to failure with the specified message, sets the activity
+     * result to cancelled, and finishes after a delay.
+     *
+     * @param resId The message to display.
+     */
+    private void showFailureAndFinish(int resId) {
         setContentView(R.layout.dialog_failure);
 
         final TextView message = (TextView) findViewById(R.id.message);
         message.setText(resId);
 
-        mHandler.delayFinish(DELAY_FAILURE);
+        setResult(RESULT_CANCELED);
+        mHandler.postDelayed(mDelayedFinish, DELAY_FAILURE);
     }
 
+    /**
+     * Broadcast received used to handle NFC tag detection.
+     */
     private final BroadcastReceiver mNfcReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -141,26 +196,15 @@ public class WriteTagActivity extends Activity {
         }
     };
 
-    private final WriteTagHandler mHandler = new WriteTagHandler(this);
+    private final Handler mHandler = new Handler();
 
-    private static class WriteTagHandler extends WeakReferenceHandler<WriteTagActivity> {
-        private static final int DELAYED_FINISH = 1;
-
-        public WriteTagHandler(WriteTagActivity parent) {
-            super(parent);
-        }
-
+    /**
+     * Runnable used to finish the app after a delay.
+     */
+    private final Runnable mDelayedFinish = new Runnable() {
         @Override
-        protected void handleMessage(Message msg, WriteTagActivity parent) {
-            switch (msg.what) {
-                case DELAYED_FINISH:
-                    parent.finish();
-                    break;
-            }
+        public void run() {
+            finish();
         }
-
-        public void delayFinish(long delayMillis) {
-            sendEmptyMessageDelayed(DELAYED_FINISH, delayMillis);
-        }
-    }
+    };
 }
