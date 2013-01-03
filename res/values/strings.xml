@@ -8,6 +8,7 @@
     <string name="menu">Menu</string>
 
     <!-- Device menu -->
+    <string name="device_settings">Device settings</string>
     <string name="menu_hide">Hide from list</string>
     <string name="menu_show">Show in list</string>
     <string name="menu_rename">Rename device…</string>

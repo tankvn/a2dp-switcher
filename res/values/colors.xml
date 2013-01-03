@@ -2,5 +2,6 @@
 <resources>
 
     <color name="dialog_divider">@android:color/darker_gray</color>
+    <color name="presence_indicator">#6BB621</color>
 
 </resources>

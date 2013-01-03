@@ -1,15 +1,18 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.utils.BluetoothDeviceUtils;
 
 import android.bluetooth.BluetoothA2dp;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,8 +23,9 @@ import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.utils.BluetoothDeviceUtils;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private static final String TAG = BluetoothListAdapter.class.getSimpleName();
@@ -32,7 +36,26 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             BluetoothA2dpCompat.STATE_PLAYING
     };
 
+    /** Intent filter used for watching Bluetooth changes. */
+    private static final IntentFilter INTENT_FILTER = new IntentFilter();
+
+    static {
+        INTENT_FILTER.addAction(BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED);
+        INTENT_FILTER.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+        INTENT_FILTER.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        INTENT_FILTER.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        INTENT_FILTER.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        INTENT_FILTER.addAction(BluetoothDevice.ACTION_FOUND);
+    }
+
+    /** Interval between running device discovery. */
+    private static final long DISCOVERY_INTERVAL = 15000;
+
+    /** Maximum age of a device that can be considered "present". */
+    private static final long PRESENCE_TIMEOUT = 30000;
+
     private final ArrayList<BluetoothDevice> mAudioDevices = new ArrayList<BluetoothDevice>();
+    private final HashMap<BluetoothDevice, Long> mPresence = new HashMap<BluetoothDevice, Long>();
 
     private final Context mContext;
     private final LayoutInflater mLayoutInflater;
@@ -41,6 +64,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private final int mLabelResId;
     private final int mStatusResId;
 
+    private BluetoothAdapter mBluetoothAdapter;
     private BluetoothA2dpCompat mAudioProxy;
     private OnClickListener mSettingsClickListener;
 
@@ -53,12 +77,23 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         mStatusResId = statusResId;
 
         mLayoutInflater = LayoutInflater.from(context);
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         mShowAllDevices = false;
     }
 
     public void setOnSettingsClickListener(OnClickListener listener) {
         mSettingsClickListener = listener;
+    }
+
+    public void setDiscovery(boolean enabled) {
+        if (mBluetoothAdapter.isDiscovering()) {
+            if (!enabled) {
+                mBluetoothAdapter.cancelDiscovery();
+            }
+        } else if (enabled) {
+            mBluetoothAdapter.startDiscovery();
+        }
     }
 
     @Override
@@ -100,6 +135,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
 
         final TextView labelView = (TextView) convertView.findViewById(mLabelResId);
         final TextView statusView = (TextView) convertView.findViewById(mStatusResId);
+        final View presenceIcon = convertView.findViewById(R.id.presence_indicator);
 
         final BluetoothDevice device = getItem(position);
         final String deviceName = getDeviceName(position);
@@ -113,6 +149,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         labelView.setText(deviceName);
         statusView.setText(statusResId);
 
+        // TODO: This should just use a different layout (or style?).
         if (mShowAllDevices && !isDeviceVisible(device)) {
             convertView.setBackgroundColor(0x33000000);
             labelView.setTextColor(0x99FFFFFF);
@@ -121,6 +158,12 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             convertView.setBackgroundColor(0);
             labelView.setTextColor(0xFFFFFFFF);
             statusView.setTextColor(0xCCFFFFFF);
+        }
+
+        if (isDevicePresent(device)) {
+            presenceIcon.setVisibility(View.VISIBLE);
+        } else {
+            presenceIcon.setVisibility(View.INVISIBLE);
         }
 
         return convertView;
@@ -166,11 +209,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     }
 
     public void register() {
-        final IntentFilter filter = new IntentFilter();
-        filter.addAction(BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED);
-        filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-
-        mContext.registerReceiver(mBroadcastReceiver, filter);
+        mContext.registerReceiver(mBroadcastReceiver, INTENT_FILTER);
     }
 
     public void unregister() {
@@ -213,10 +252,53 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         notifyDataSetChanged();
     }
 
+    private void onDeviceFound(BluetoothDevice device) {
+        if (!mAudioDevices.contains(device)) {
+            return;
+        }
+
+        mPresence.put(device, SystemClock.uptimeMillis());
+
+        reloadDevices();
+    }
+
+    private boolean isDevicePresent(BluetoothDevice device) {
+        if (!mPresence.containsKey(device)) {
+            return false;
+        }
+
+        final long elapsed = (SystemClock.uptimeMillis() - mPresence.get(device));
+
+        return (elapsed < PRESENCE_TIMEOUT);
+    }
+
+    private final Handler mHandler = new Handler();
+
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            reloadDevices();
+            final String action = intent.getAction();
+
+            if (BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED.equals(action)
+                    || BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)
+                    || BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
+                reloadDevices();
+            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                mHandler.postDelayed(mDiscoveryRunnable, DISCOVERY_INTERVAL);
+            } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                final BluetoothDevice device = intent
+                        .getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (device != null) {
+                    onDeviceFound(device);
+                }
+            }
+        }
+    };
+
+    private final Runnable mDiscoveryRunnable = new Runnable() {
+        @Override
+        public void run() {
+            mBluetoothAdapter.startDiscovery();
         }
     };
 }

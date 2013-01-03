@@ -110,6 +110,9 @@ public class MainActivity extends FragmentActivity {
 
         final IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        filter.addAction(BluetoothDevice.ACTION_FOUND);
         registerReceiver(mBroadcastReceiver, filter);
 
         final Intent serviceIntent = new Intent(this, BluetoothSwitcherService.class);
@@ -233,12 +236,14 @@ public class MainActivity extends FragmentActivity {
 
         mDeviceAdapter.reloadDevices();
         mDeviceAdapter.register();
+        mDeviceAdapter.setDiscovery(true);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
+        mDeviceAdapter.setDiscovery(false);
         mDeviceAdapter.unregister();
     }
 

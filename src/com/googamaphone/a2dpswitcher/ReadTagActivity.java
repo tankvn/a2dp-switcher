@@ -351,16 +351,13 @@ public class ReadTagActivity extends Activity {
         }
 
         private void onAdapterStateChanged(Intent intent) {
-            final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                     BluetoothAdapter.ERROR);
 
-            if (device.getAddress().equals(mTargetAddress)) {
-                if (state == BluetoothAdapter.STATE_ON) {
-                    resumeConnectingToDevice();
-                } else {
-                    showFailure(R.string.failure_enable_bluetooth);
-                }
+            if (state == BluetoothAdapter.STATE_ON) {
+                resumeConnectingToDevice();
+            } else {
+                showFailure(R.string.failure_enable_bluetooth);
             }
         }
     };

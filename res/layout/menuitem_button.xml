@@ -9,9 +9,16 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
-        android:layout_marginRight="12dp"
         android:background="@null"
-        android:contentDescription="@null"
+        android:contentDescription="@string/device_settings"
         android:src="@drawable/perm_group_system_tools" />
+
+    <View
+        android:id="@+id/presence_indicator"
+        android:layout_width="4dp"
+        android:layout_height="match_parent"
+        android:layout_margin="4dp"
+        android:background="@color/presence_indicator"
+        android:visibility="invisible" />
 
 </LinearLayout>

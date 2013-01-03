@@ -2,5 +2,6 @@
 <resources>
 
     <color name="dialog_divider">@android:color/holo_blue_light</color>
+    <color name="presence_indicator">@android:color/holo_blue_light</color>
 
 </resources>
