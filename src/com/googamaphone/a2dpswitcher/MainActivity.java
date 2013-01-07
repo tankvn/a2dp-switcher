@@ -94,7 +94,7 @@ public class MainActivity extends FragmentActivity {
 
         mDeviceAdapter = new ManagedBluetoothListAdapter(this);
         mDeviceAdapter.setOnSettingsClickListener(mOnDeviceClickListener);
-        mDeviceAdapter.showAllDevices(showAllDevices);
+        mDeviceAdapter.setShowAllDevices(showAllDevices);
 
         final View menuButton = findViewById(R.id.menu);
         menuButton.setOnClickListener(mOnClickListener);
@@ -236,14 +236,14 @@ public class MainActivity extends FragmentActivity {
 
         mDeviceAdapter.reloadDevices();
         mDeviceAdapter.register();
-        mDeviceAdapter.setDiscovery(true);
+        mDeviceAdapter.setDiscoveryEnabled(true);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
-        mDeviceAdapter.setDiscovery(false);
+        mDeviceAdapter.setDiscoveryEnabled(false);
         mDeviceAdapter.unregister();
     }
 
@@ -320,7 +320,7 @@ public class MainActivity extends FragmentActivity {
             case R.id.show_hidden:
                 final boolean checked = !item.isChecked();
                 item.setChecked(checked);
-                mDeviceAdapter.showAllDevices(checked);
+                mDeviceAdapter.setShowAllDevices(checked);
                 final Editor editor = mPrefs.edit();
                 editor.putBoolean(PREF_SHOW_ALL_DEVICES, checked);
                 editor.apply();

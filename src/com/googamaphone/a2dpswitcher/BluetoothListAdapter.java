@@ -68,6 +68,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private BluetoothA2dpCompat mAudioProxy;
     private OnClickListener mSettingsClickListener;
 
+    private boolean mDiscoveryEnabled;
     private boolean mShowAllDevices;
 
     public BluetoothListAdapter(Context context, int viewResId, int labelResId, int statusResId) {
@@ -80,20 +81,6 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         mShowAllDevices = false;
-    }
-
-    public void setOnSettingsClickListener(OnClickListener listener) {
-        mSettingsClickListener = listener;
-    }
-
-    public void setDiscovery(boolean enabled) {
-        if (mBluetoothAdapter.isDiscovering()) {
-            if (!enabled) {
-                mBluetoothAdapter.cancelDiscovery();
-            }
-        } else if (enabled) {
-            mBluetoothAdapter.startDiscovery();
-        }
     }
 
     @Override
@@ -160,7 +147,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             statusView.setTextColor(0xCCFFFFFF);
         }
 
-        if (isDevicePresent(device)) {
+        if (isStatePresent(state) || isDevicePresent(device)) {
             presenceIcon.setVisibility(View.VISIBLE);
         } else {
             presenceIcon.setVisibility(View.INVISIBLE);
@@ -169,23 +156,39 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         return convertView;
     }
 
-    private int getResourceForDeviceState(int state) {
-        switch (state) {
-            case BluetoothA2dp.STATE_DISCONNECTED:
-                return R.string.state_disconnected;
-            case BluetoothA2dp.STATE_CONNECTING:
-                return R.string.state_connecting;
-            case BluetoothA2dp.STATE_CONNECTED:
-                return R.string.state_connected;
-            case BluetoothA2dp.STATE_DISCONNECTING:
-                return R.string.state_disconnecting;
-            case BluetoothA2dp.STATE_PLAYING:
-                return R.string.state_playing;
+    public void setOnSettingsClickListener(OnClickListener listener) {
+        mSettingsClickListener = listener;
+    }
+
+    /**
+     * Manages the adapter's discovery state.
+     * <p>
+     * When discovery is enabled, the adapter will automatically detect nearby
+     * devices and display a presence indicator.
+     *
+     * @param enabled {@code true} to enable discovery.
+     */
+    public void setDiscoveryEnabled(boolean enabled) {
+        mDiscoveryEnabled = enabled;
+
+        final boolean isDiscovering = mBluetoothAdapter.isDiscovering();
+
+        if (!enabled) {
+            mHandler.removeCallbacks(mDiscoveryRunnable);
+            mBluetoothAdapter.cancelDiscovery();
+        } else if (!isDiscovering) {
+            mBluetoothAdapter.startDiscovery();
         }
+    }
 
-        Log.e(TAG, "Unknown Bluetooth state: " + state);
-
-        return R.string.state_disconnected;
+    /**
+     * Returns whether discovery is enabled.
+     *
+     * @return {@code true} if discovery is enabled.
+     * @see #setDiscoveryEnabled(boolean)
+     */
+    public boolean isDiscoveryEnabled() {
+        return mDiscoveryEnabled;
     }
 
     public void setAudioProxy(BluetoothA2dpCompat audioProxy) {
@@ -194,36 +197,86 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         reloadDevices();
     }
 
-    public void showAllDevices(boolean showAllDevices) {
+    /**
+     * Sets whether this list adapter should ignore the result of
+     * {@link #isDeviceVisible(BluetoothDevice)} and show all devices.
+     *
+     * @param enabled {@code true} to show all devices.
+     */
+    public void setShowAllDevices(boolean enabled) {
         final boolean previousValue = mShowAllDevices;
 
-        mShowAllDevices = showAllDevices;
+        mShowAllDevices = enabled;
 
-        if (showAllDevices != previousValue) {
+        if (enabled != previousValue) {
             reloadDevices();
         }
     }
 
+    /**
+     * Returns whether this adapter is showing all devices.
+     *
+     * @return {@code true} if this adapter is showing all devices.
+     * @see #setShowAllDevices(boolean)
+     */
     public boolean isShowingAllDevices() {
         return mShowAllDevices;
     }
 
+    /**
+     * Registers this list adapter to receive changes in device and Bluetooth
+     * adapter state.
+     * <p>
+     * This method should be called after resuming any containing activities.
+     */
     public void register() {
         mContext.registerReceiver(mBroadcastReceiver, INTENT_FILTER);
     }
 
+    /**
+     * Unregisters this list adapter and prevents it from receiving changes in
+     * device and Bluetooth adapter state.
+     * <p>
+     * This method should be called before pausing any containing activities.
+     */
     public void unregister() {
         mContext.unregisterReceiver(mBroadcastReceiver);
     }
 
+    /**
+     * Returns the display name for the device at the specified position in the
+     * adapter's data set.
+     *
+     * @param position The position of the device within the adapter's data set.
+     * @return The display name for the device.
+     */
     public String getDeviceName(int position) {
         return getDeviceName(getItem(position));
     }
 
+    /**
+     * Internal method used to determine the display name for a device.
+     * <p>
+     * Default implementation returns the device's preferred name. Override this
+     * method to customize the displayed names for devices.
+     *
+     * @param device The device to query.
+     * @return The name to display for the device.
+     */
     protected String getDeviceName(BluetoothDevice device) {
         return device.getName();
     }
 
+    /**
+     * Internal method used to determine whether the specified device should be
+     * shown in the list.
+     * <p>
+     * Default implementation always returns {@code true}. Override this method
+     * to customize when devices are shown.
+     *
+     * @param device The device to query.
+     * @return {@code true} if the device should be shown in the list.
+     */
     protected boolean isDeviceVisible(BluetoothDevice device) {
         return true;
     }
@@ -262,6 +315,13 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         reloadDevices();
     }
 
+    /**
+     * Returns whether the specified device has recently (e.g. within
+     * {@link #PRESENCE_TIMEOUT} milliseconds) advertised its presence.
+     *
+     * @param device The device to query.
+     * @return {@code true} if the device is present.
+     */
     private boolean isDevicePresent(BluetoothDevice device) {
         if (!mPresence.containsKey(device)) {
             return false;
@@ -270,6 +330,51 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         final long elapsed = (SystemClock.uptimeMillis() - mPresence.get(device));
 
         return (elapsed < PRESENCE_TIMEOUT);
+    }
+
+    /**
+     * Returns whether a connectivity state implies that the associated device
+     * is present.
+     *
+     * @param state The connectivity state for a device.
+     * @return {@code true} if the connectivity state implies that the device is
+     *         present.
+     */
+    private static boolean isStatePresent(int state) {
+        switch (state) {
+            case BluetoothA2dp.STATE_DISCONNECTING:
+            case BluetoothA2dp.STATE_CONNECTED:
+            case BluetoothA2dp.STATE_PLAYING:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Returns the string resource ID describing a particular connectivity
+     * state.
+     *
+     * @param state The connectivity state for a device.
+     * @return The string resource ID describing the connectivity state.
+     */
+    private static int getResourceForDeviceState(int state) {
+        switch (state) {
+            case BluetoothA2dp.STATE_DISCONNECTED:
+                return R.string.state_disconnected;
+            case BluetoothA2dp.STATE_CONNECTING:
+                return R.string.state_connecting;
+            case BluetoothA2dp.STATE_CONNECTED:
+                return R.string.state_connected;
+            case BluetoothA2dp.STATE_DISCONNECTING:
+                return R.string.state_disconnecting;
+            case BluetoothA2dp.STATE_PLAYING:
+                return R.string.state_playing;
+        }
+
+        Log.e(TAG, "Unknown Bluetooth state: " + state);
+
+        return R.string.state_disconnected;
     }
 
     private final Handler mHandler = new Handler();
@@ -284,7 +389,10 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
                     || BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
                 reloadDevices();
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                mHandler.postDelayed(mDiscoveryRunnable, DISCOVERY_INTERVAL);
+                // When discovery is enabled, restart discovery after a short delay.
+                if (mDiscoveryEnabled) {
+                    mHandler.postDelayed(mDiscoveryRunnable, DISCOVERY_INTERVAL);
+                }
             } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 final BluetoothDevice device = intent
                         .getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
