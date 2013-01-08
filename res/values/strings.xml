@@ -49,6 +49,7 @@
     <string name="progress_audio_service">Initializing audio service…</string>
     <string name="progress_bond_device">Pairing Bluetooth device…</string>
     <string name="progress_connect_device">Connecting to device…</string>
+    <string name="progress_waiting_for_tag">Waiting for tag…</string>
     <string name="progress_write_tag">Formatting tag…</string>
 
     <!-- Connection states -->

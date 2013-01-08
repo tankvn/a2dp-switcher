@@ -72,7 +72,7 @@ public class WriteTagActivity extends Activity {
         setContentView(R.layout.dialog_waiting);
 
         final TextView message = (TextView) findViewById(R.id.message);
-        message.setText(R.string.progress_write_tag);
+        message.setText(R.string.progress_waiting_for_tag);
 
         final Intent intent = getIntent();
         mUri = intent.getParcelableExtra(EXTRA_URI);

@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.googamaphone.a2dpswitcher"
-    android:versionCode="5"
-    android:versionName="0.1.4" >
+    android:versionCode="6"
+    android:versionName="0.1.5" >
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
@@ -65,7 +65,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.googamaphone.a2dpswitcher.Activity"
+            android:name=".WriteTagActivity"
             android:exported="false"
             android:label="@string/scan_a_tag"
             android:theme="@style/DialogTheme" />
