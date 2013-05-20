@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.googamaphone.a2dpswitcher"
-    android:versionCode="6"
-    android:versionName="0.1.5" >
+    android:versionCode="7"
+    android:versionName="0.1.6" >
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
@@ -15,10 +15,11 @@
         android:required="true" />
 
     <uses-sdk
-        android:minSdkVersion="10"
-        android:targetSdkVersion="16" />
+        android:minSdkVersion="8"
+        android:targetSdkVersion="17" />
 
     <application
+        android:allowBackup="true"
         android:backupAgent=".PreferencesBackupAgent"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name" >

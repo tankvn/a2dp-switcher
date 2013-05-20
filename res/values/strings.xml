@@ -37,7 +37,6 @@
     <!-- Failure states -->
     <string name="failure_bluetooth">This device does not support Bluetooth.</string>
     <string name="failure_enable_bluetooth">Failed to enable Bluetooth.</string>
-    <string name="failure_audio_service">Failed to connect to audio service.</string>
     <string name="failure_bond_device">Failed to pair with Bluetooth device.</string>
     <string name="failure_connect_device">Failed to connect to Bluetooth device.</string>
     <string name="failure_write_tag">Failed to format NFC tag.</string>
@@ -46,11 +45,9 @@
     <!-- Progress states -->
     <string name="progress_reading_tag">Reading NFC tag…</string>
     <string name="progress_enable_bluetooth">Turning on Bluetooth…</string>
-    <string name="progress_audio_service">Initializing audio service…</string>
     <string name="progress_bond_device">Pairing Bluetooth device…</string>
     <string name="progress_connect_device">Connecting to device…</string>
     <string name="progress_waiting_for_tag">Waiting for tag…</string>
-    <string name="progress_write_tag">Formatting tag…</string>
 
     <!-- Connection states -->
     <string name="state_connected">Connected</string>
@@ -62,8 +59,6 @@
     <!-- NFC -->
     <string name="connecting">Connecting audio…</string>
     <string name="scan_a_tag">Scan a tag</string>
-    <string name="write_successful">Wrote pairing information to tag</string>
-    <string name="write_failed">Failed to write pairing information</string>
 
     <!-- Main menu -->
     <string name="disconnect_all">Disconnect all devices</string>

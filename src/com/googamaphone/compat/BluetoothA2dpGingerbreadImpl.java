@@ -128,6 +128,9 @@ class BluetoothA2dpGingerbreadImpl extends BluetoothA2dpStubImpl {
 
     private static boolean doesDeviceSuportA2dp(BluetoothDevice device) {
         final BluetoothClass deviceClass = device.getBluetoothClass();
+        if (deviceClass == null) {
+            return false;
+        }
 
         if (deviceClass.hasService(BluetoothClass.Service.RENDER)) {
             return true;

@@ -1,20 +1,37 @@
 package com.googamaphone.utils;
 
-import java.io.IOException;
-
 import android.annotation.TargetApi;
+import android.content.Context;
 import android.net.Uri;
 import android.nfc.FormatException;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
+import android.nfc.NfcAdapter;
+import android.nfc.NfcManager;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.nfc.tech.NdefFormatable;
 import android.os.Build;
 
-@TargetApi(14)
+import java.io.IOException;
+
+@TargetApi(Build.VERSION_CODES.GINGERBREAD_MR1)
 public class NfcUtils {
-    public static final int MIN_SDK_VERSION = Build.VERSION_CODES.ICE_CREAM_SANDWICH;
+    public static final int MIN_SDK = Build.VERSION_CODES.GINGERBREAD_MR1;
+
+    public static boolean hasDefaultAdapter(Context context) {
+        final NfcManager nfcManager = (NfcManager) context.getSystemService(Context.NFC_SERVICE);
+        if (nfcManager == null) {
+            return false;
+        }
+
+        final NfcAdapter nfcAdapter = nfcManager.getDefaultAdapter();
+        if (nfcAdapter == null) {
+            return false;
+        }
+
+        return true;
+    }
 
     public static boolean writeUriToTag(Tag tag, Uri uri, String appPackage) {
         final Ndef ndefTag = Ndef.get(tag);
@@ -60,10 +77,10 @@ public class NfcUtils {
     private static NdefMessage obtainNdefMessage(Uri uri, String appPackage) {
         final int recordCount = ((appPackage != null) ? 2 : 1);
         final NdefRecord[] records = new NdefRecord[recordCount];
-        records[0] = NdefRecord.createUri(uri);
+        records[0] = NdefRecordCompatUtils.createUri(uri);
 
         if (appPackage != null) {
-            records[1] = NdefRecord.createApplicationRecord(appPackage);
+            records[1] = NdefRecordCompatUtils.createApplicationRecord(appPackage);
         }
 
         final NdefMessage msg = new NdefMessage(records);

@@ -18,6 +18,7 @@ package com.googamaphone.a2dpswitcher;
 
 import com.googamaphone.utils.NfcUtils;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -29,6 +30,7 @@ import android.nfc.NfcAdapter;
 import android.nfc.NfcManager;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.widget.TextView;
@@ -40,6 +42,7 @@ import android.widget.TextView;
  * {@link #EXTRA_PACKAGE} to specify the app package that should be used to
  * handle the NFC tag.
  */
+@TargetApi(Build.VERSION_CODES.GINGERBREAD_MR1)
 public class WriteTagActivity extends Activity {
     /** Extra representing the URI to write to an NFC tag. */
     public static final String EXTRA_URI = "uri";

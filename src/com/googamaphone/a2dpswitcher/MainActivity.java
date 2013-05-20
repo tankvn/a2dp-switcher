@@ -3,6 +3,7 @@ package com.googamaphone.a2dpswitcher;
 
 import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
 import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.EditorCompatUtils;
 import com.googamaphone.utils.BluetoothDeviceUtils;
 import com.googamaphone.utils.NfcUtils;
 import com.googamaphone.utils.WeakReferenceHandler;
@@ -23,8 +24,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.DataSetObserver;
 import android.net.Uri;
-import android.nfc.NfcAdapter;
-import android.nfc.NfcManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -323,7 +322,7 @@ public class MainActivity extends FragmentActivity {
                 mDeviceAdapter.setShowAllDevices(checked);
                 final Editor editor = mPrefs.edit();
                 editor.putBoolean(PREF_SHOW_ALL_DEVICES, checked);
-                editor.apply();
+                EditorCompatUtils.apply(editor);
                 return true;
             case R.id.settings:
                 // TODO: Implement preferences.
@@ -355,11 +354,8 @@ public class MainActivity extends FragmentActivity {
         getMenuInflater().inflate(R.menu.device_menu, menu);
 
         // Remove unsupported device menu items.
-        if (Build.VERSION.SDK_INT >= NfcUtils.MIN_SDK_VERSION) {
-            final NfcManager nfcManager = (NfcManager) getSystemService(NFC_SERVICE);
-            final NfcAdapter nfcAdapter = nfcManager.getDefaultAdapter();
-
-            if (nfcAdapter != null) {
+        if (Build.VERSION.SDK_INT >= NfcUtils.MIN_SDK) {
+            if (NfcUtils.hasDefaultAdapter(this)) {
                 menu.findItem(R.id.write_tag).setVisible(true);
             }
         }
@@ -394,6 +390,7 @@ public class MainActivity extends FragmentActivity {
         return false;
     }
 
+    @TargetApi(Build.VERSION_CODES.GINGERBREAD_MR1)
     private void showWriteTagActivity(BluetoothDevice device, final String deviceName) {
         final Uri.Builder builder = new Uri.Builder().scheme(URI_SCHEME)
                 .authority(URI_AUTHORITY)
