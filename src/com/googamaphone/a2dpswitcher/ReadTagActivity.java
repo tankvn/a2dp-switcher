@@ -16,10 +16,6 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.compat.BluetoothDeviceCompatUtils;
-
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -38,11 +34,15 @@ import android.os.RemoteException;
 import android.util.Pair;
 import android.widget.TextView;
 
+import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.BluetoothDeviceCompatUtils;
+
 import java.util.Set;
 
 /**
  * Activity used to read NFC tags encoded by this app.
- * <p>
+ * <p/>
  * After parsing the tag data, this activity performs several checks and
  * attempts to resolve any issues before connecting to a Bluetooth device.
  * <ol>
@@ -53,13 +53,19 @@ import java.util.Set;
  * </ol>
  */
 public class ReadTagActivity extends Activity {
-    /** Delay in milliseconds before finishing after a successful read. */
+    /**
+     * Delay in milliseconds before finishing after a successful read.
+     */
     private static final long DELAY_SUCCESS = 1000;
 
-    /** Delay in milliseconds before finishing after a failed read. */
+    /**
+     * Delay in milliseconds before finishing after a failed read.
+     */
     private static final long DELAY_FAILURE = 2000;
 
-    /** Intent filter used to monitor changes in Bluetooth state. */
+    /**
+     * Intent filter used to monitor changes in Bluetooth state.
+     */
     private static final IntentFilter FILTER_STATE_CHANGED = new IntentFilter();
 
     static {
@@ -68,21 +74,36 @@ public class ReadTagActivity extends Activity {
         FILTER_STATE_CHANGED.addAction(BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED);
     }
 
-    /** The default Bluetooth adapter. */
+    /**
+     * The default Bluetooth adapter.
+     */
     private BluetoothAdapter mBluetoothAdapter;
 
-    /** The audio proxy used to connect A2DP streaming. */
+    /**
+     * The audio proxy used to connect A2DP streaming.
+     */
     private BluetoothA2dpCompat mAudioProxy;
 
-    /** Connection to the A2DP device management service. */
+    /**
+     * Connection to the A2DP device management service.
+     */
     // TODO(alanv): This seems like overkill since they're in the same package.
     private DeviceManagementBinder mDeviceManagementBinder;
 
-    /** The address of the target device, as read from the NFC tag. */
+    /**
+     * The address of the target device, as read from the NFC tag.
+     */
     private String mTargetAddress;
 
-    /** The name of the target device, as read from the NFC tag. */
+    /**
+     * The name of the target device, as read from the NFC tag.
+     */
     private String mTargetName;
+
+    /**
+     * Whether the service was bound successfully.
+     */
+    private boolean mServiceBound;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -110,6 +131,10 @@ public class ReadTagActivity extends Activity {
 
         if (mDeviceManagementBinder != null) {
             mDeviceManagementBinder.unregisterCallback(mDeviceDataCallback);
+        }
+
+        if (mServiceBound) {
+            unbindService(mServiceConnection);
         }
     }
 
@@ -159,7 +184,7 @@ public class ReadTagActivity extends Activity {
     /**
      * Attempts to connect to the device with the specified address, handling
      * failure cases where possible.
-     * <p>
+     * <p/>
      * If necessary, this method will attempt to:
      * <ul>
      * <li>Prompt the user to enable Bluetooth</li>
@@ -181,6 +206,10 @@ public class ReadTagActivity extends Activity {
 
         final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mTargetAddress);
         final Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
+        if (bondedDevices == null) {
+            showFailure(R.string.failure_connect_device);
+            return;
+        }
 
         // Are we bonded to the Bluetooth device?
         if (!bondedDevices.contains(device)) {
@@ -196,7 +225,7 @@ public class ReadTagActivity extends Activity {
      */
     private void attemptBindService() {
         final Intent serviceIntent = new Intent(this, BluetoothSwitcherService.class);
-        bindService(serviceIntent, mServiceConnection, 0);
+        mServiceBound = bindService(serviceIntent, mServiceConnection, 0);
     }
 
     /**
@@ -323,30 +352,46 @@ public class ReadTagActivity extends Activity {
 
         private void onDeviceConnectionStateChanged(Intent intent) {
             final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            if (device == null) {
+                showFailure(R.string.failure_connect_device);
+                return;
+            }
+
             final int state = intent.getIntExtra(BluetoothA2dpCompat.EXTRA_STATE,
                     BluetoothA2dpCompat.STATE_DISCONNECTED);
+            final String address = device.getAddress();
+            if ((address == null) || !address.equals(mTargetAddress)) {
+                showFailure(R.string.failure_connect_device);
+                return;
+            }
 
-            if (device.getAddress().equals(mTargetAddress)) {
-                if ((state == BluetoothA2dpCompat.STATE_CONNECTED)
-                        || (state == BluetoothA2dpCompat.STATE_PLAYING)) {
-                    showSuccess();
-                } else if (state == BluetoothA2dpCompat.STATE_DISCONNECTED) {
-                    showFailure(R.string.failure_connect_device);
-                }
+            if ((state == BluetoothA2dpCompat.STATE_CONNECTED)
+                    || (state == BluetoothA2dpCompat.STATE_PLAYING)) {
+                showSuccess();
+            } else {
+                showFailure(R.string.failure_connect_device);
             }
         }
 
         private void onDeviceBondStateChanged(Intent intent) {
             final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            if (device == null) {
+                showFailure(R.string.failure_bond_device);
+                return;
+            }
+
             final int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
                     BluetoothDevice.BOND_NONE);
+            final String address = device.getAddress();
+            if ((address == null) || !address.equals(mTargetAddress)) {
+                showFailure(R.string.failure_bond_device);
+                return;
+            }
 
-            if (device.getAddress().equals(mTargetAddress)) {
-                if (state == BluetoothDevice.BOND_BONDED) {
-                    resumeConnectingToDevice();
-                } else if (state == BluetoothDevice.BOND_NONE) {
-                    showFailure(R.string.failure_bond_device);
-                }
+            if (state == BluetoothDevice.BOND_BONDED) {
+                resumeConnectingToDevice();
+            } else if (state == BluetoothDevice.BOND_NONE) {
+                showFailure(R.string.failure_bond_device);
             }
         }
 

@@ -37,7 +37,8 @@ public class RenameDialogFragment extends DialogFragment {
             public void onClick(DialogInterface dialog, int which) {
                 final AlertDialog alertDialog = (AlertDialog) dialog;
                 final EditText editText = (EditText) alertDialog.findViewById(R.id.device_name);
-                final String deviceName = editText.getText().toString();
+                final CharSequence text = editText.getText();
+                final String deviceName = (text == null ? null : text.toString());
 
                 ((MainActivity) getActivity()).setDeviceName(deviceId, deviceName);
             }
@@ -45,8 +46,9 @@ public class RenameDialogFragment extends DialogFragment {
 
         final LayoutInflater inflater = LayoutInflater.from(getActivity());
         final View renameDialogView = inflater.inflate(R.layout.rename_dialog, null);
-        final EditText editText = (EditText) renameDialogView.findViewById(R.id.device_name);
+        assert renameDialogView != null;
 
+        final EditText editText = (EditText) renameDialogView.findViewById(R.id.device_name);
         editText.setText(deviceName);
 
         return new AlertDialog.Builder(getActivity())

@@ -14,6 +14,6 @@ public class BluetoothDeviceUtils {
         }
 
         final String longAddress = address.replaceAll(":", "");
-        return (int) (Long.parseLong(longAddress, 16) & 0xFFFFFFFF);
+        return (int) (Long.parseLong(longAddress, 16));
     }
 }

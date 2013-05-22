@@ -26,31 +26,22 @@ public class NfcUtils {
         }
 
         final NfcAdapter nfcAdapter = nfcManager.getDefaultAdapter();
-        if (nfcAdapter == null) {
-            return false;
-        }
-
-        return true;
+        return (nfcAdapter != null);
     }
 
     public static boolean writeUriToTag(Tag tag, Uri uri, String appPackage) {
         final Ndef ndefTag = Ndef.get(tag);
-
         if (ndefTag != null) {
             return writeUriToNdefTag(ndefTag, uri, appPackage);
         }
 
         final NdefFormatable ndefFormatableTag = NdefFormatable.get(tag);
+        return (ndefFormatableTag != null) && writeUriToNdefFormatableTag(ndefFormatableTag, uri, appPackage);
 
-        if (ndefFormatableTag != null) {
-            return writeUriToNdefFormatableTag(ndefFormatableTag, uri, appPackage);
-        }
-
-        return false;
     }
 
     private static boolean writeUriToNdefFormatableTag(NdefFormatable ndefFormatableTag, Uri uri,
-            String appPackage) {
+                                                       String appPackage) {
         final NdefMessage msg = obtainNdefMessage(uri, appPackage);
 
         try {
@@ -83,8 +74,7 @@ public class NfcUtils {
             records[1] = NdefRecordCompatUtils.createApplicationRecord(appPackage);
         }
 
-        final NdefMessage msg = new NdefMessage(records);
-        return msg;
+        return new NdefMessage(records);
     }
 
     private static boolean writeUriToNdefTag(Ndef ndefTag, Uri uri, String appPackage) {

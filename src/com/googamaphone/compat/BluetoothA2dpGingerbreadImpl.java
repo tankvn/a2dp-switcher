@@ -1,13 +1,6 @@
 
 package com.googamaphone.compat;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
@@ -16,6 +9,13 @@ import android.os.AsyncTask;
 
 import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpStubCallback;
 import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpStubImpl;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 class BluetoothA2dpGingerbreadImpl extends BluetoothA2dpStubImpl {
     public static final String ACTION_SINK_STATE_CHANGED =
@@ -74,12 +74,15 @@ class BluetoothA2dpGingerbreadImpl extends BluetoothA2dpStubImpl {
     @Override
     public List<BluetoothDevice> getDevicesMatchingConnectionStates(Object receiver, int[] states) {
         final BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-
         if (adapter == null) {
             return Collections.emptyList();
         }
 
         final Set<BluetoothDevice> devices = adapter.getBondedDevices();
+        if (devices == null) {
+            return Collections.emptyList();
+        }
+
         final List<BluetoothDevice> result = new ArrayList<BluetoothDevice>(devices.size());
         final long bitmask = collapseValuesToBitmask(states);
 

@@ -1,9 +1,6 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.utils.BluetoothDeviceUtils;
-
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -23,6 +20,9 @@ import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,13 +30,15 @@ import java.util.List;
 public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private static final String TAG = BluetoothListAdapter.class.getSimpleName();
 
-    private static final int[] ALL_A2DP_STATES = new int[] {
+    private static final int[] ALL_A2DP_STATES = new int[]{
             BluetoothA2dpCompat.STATE_DISCONNECTED, BluetoothA2dpCompat.STATE_CONNECTING,
             BluetoothA2dpCompat.STATE_CONNECTED, BluetoothA2dpCompat.STATE_DISCONNECTING,
             BluetoothA2dpCompat.STATE_PLAYING
     };
 
-    /** Intent filter used for watching Bluetooth changes. */
+    /**
+     * Intent filter used for watching Bluetooth changes.
+     */
     private static final IntentFilter INTENT_FILTER = new IntentFilter();
 
     static {
@@ -48,10 +50,14 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         INTENT_FILTER.addAction(BluetoothDevice.ACTION_FOUND);
     }
 
-    /** Interval between running device discovery. */
+    /**
+     * Interval between running device discovery.
+     */
     private static final long DISCOVERY_INTERVAL = 15000;
 
-    /** Maximum age of a device that can be considered "present". */
+    /**
+     * Maximum age of a device that can be considered "present".
+     */
     private static final long PRESENCE_TIMEOUT = 30000;
 
     private final ArrayList<BluetoothDevice> mAudioDevices = new ArrayList<BluetoothDevice>();
@@ -111,14 +117,17 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             params.weight = 1.0f;
 
+            assert innerView != null;
             innerView.setId(R.id.list_entry);
             innerView.setOnClickListener(mSettingsClickListener);
 
+            assert outerView != null;
             outerView.addView(innerView, 0, params);
             outerView.findViewById(R.id.device_settings).setOnClickListener(mSettingsClickListener);
 
             convertView = outerView;
         }
+
 
         final TextView labelView = (TextView) convertView.findViewById(mLabelResId);
         final TextView statusView = (TextView) convertView.findViewById(mStatusResId);
@@ -162,7 +171,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
 
     /**
      * Manages the adapter's discovery state.
-     * <p>
+     * <p/>
      * When discovery is enabled, the adapter will automatically detect nearby
      * devices and display a presence indicator.
      *
@@ -226,7 +235,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     /**
      * Registers this list adapter to receive changes in device and Bluetooth
      * adapter state.
-     * <p>
+     * <p/>
      * This method should be called after resuming any containing activities.
      */
     public void register() {
@@ -236,7 +245,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     /**
      * Unregisters this list adapter and prevents it from receiving changes in
      * device and Bluetooth adapter state.
-     * <p>
+     * <p/>
      * This method should be called before pausing any containing activities.
      */
     public void unregister() {
@@ -256,7 +265,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
 
     /**
      * Internal method used to determine the display name for a device.
-     * <p>
+     * <p/>
      * Default implementation returns the device's preferred name. Override this
      * method to customize the displayed names for devices.
      *
@@ -270,7 +279,7 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     /**
      * Internal method used to determine whether the specified device should be
      * shown in the list.
-     * <p>
+     * <p/>
      * Default implementation always returns {@code true}. Override this method
      * to customize when devices are shown.
      *

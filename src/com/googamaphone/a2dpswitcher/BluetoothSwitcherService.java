@@ -1,11 +1,7 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpCompatCallback;
-import com.googamaphone.utils.BluetoothDeviceUtils;
-import com.googamaphone.utils.PreferencesUtils;
-
+import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.app.backup.BackupManager;
@@ -17,6 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Binder;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
@@ -24,9 +21,15 @@ import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.SparseArray;
 
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpCompatCallback;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+import com.googamaphone.utils.PreferencesUtils;
+
 import java.util.List;
 import java.util.TreeSet;
 
+@TargetApi(Build.VERSION_CODES.FROYO)
 public class BluetoothSwitcherService extends Service {
     public static final String PREF_HIDDEN = "hidden";
     public static final String PREF_CUSTOM_NAMES = "customNames";
@@ -34,7 +37,7 @@ public class BluetoothSwitcherService extends Service {
 
     public static final boolean PREF_NOTIFY_DEFAULT = true;
 
-    private static final int[] STATES_CONNECTED = new int[] {
+    private static final int[] STATES_CONNECTED = new int[]{
             BluetoothA2dpCompat.STATE_CONNECTING,
             BluetoothA2dpCompat.STATE_CONNECTED,
             BluetoothA2dpCompat.STATE_DISCONNECTING,

@@ -1,13 +1,6 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.compat.EditorCompatUtils;
-import com.googamaphone.utils.BluetoothDeviceUtils;
-import com.googamaphone.utils.NfcUtils;
-import com.googamaphone.utils.WeakReferenceHandler;
-
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -49,6 +42,15 @@ import android.widget.PopupMenu.OnMenuItemClickListener;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.EditorCompatUtils;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+import com.googamaphone.utils.NfcUtils;
+import com.googamaphone.utils.WeakReferenceHandler;
+
+import org.jetbrains.annotations.NotNull;
+
 import java.util.List;
 
 public class MainActivity extends FragmentActivity {
@@ -62,15 +64,19 @@ public class MainActivity extends FragmentActivity {
 
     private static final String PREF_SHOW_ALL_DEVICES = "show_all_devices";
 
-    /** The version of encoding used for NFC tags. */
+    /**
+     * The version of encoding used for NFC tags.
+     */
     private static final int TAG_VERSION = 1;
 
-    private static final int[] STATES_CONNECTED = new int[] {
+    private static final int[] STATES_CONNECTED = new int[]{
             BluetoothA2dpCompat.STATE_CONNECTED, BluetoothA2dpCompat.STATE_CONNECTING
     };
 
     private static final String DIALOG_HIDE = "dialog_remove";
     private static final String DIALOG_RENAME = "dialog_rename";
+
+    private final Object mDeviceLock = new Object();
 
     private SharedPreferences mPrefs;
     private BluetoothAdapter mBluetoothAdapter;
@@ -192,7 +198,7 @@ public class MainActivity extends FragmentActivity {
     }
 
     private void updateDataSetObserver(boolean enabled) {
-        synchronized (mDeviceAdapter) {
+        synchronized (mDeviceLock) {
             if (!enabled && mHasRegisteredObserver) {
                 mHasRegisteredObserver = false;
                 mDeviceAdapter.unregisterDataSetObserver(mDataSetObserver);
@@ -258,7 +264,7 @@ public class MainActivity extends FragmentActivity {
     }
 
     @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event) {
+    public boolean onKeyUp(int keyCode, @NotNull KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_MENU:
                 if (event.isTracking()) {
@@ -278,7 +284,7 @@ public class MainActivity extends FragmentActivity {
 
     private void onCreateOptionsMenu(Menu menu, View v, ContextMenuInfo menuInfo) {
         if (menuInfo instanceof AdapterContextMenuInfo) {
-            onCreateAdapterContextMenu(menu, v, menuInfo);
+            onCreateAdapterContextMenu(menu, menuInfo);
             return;
         }
 
@@ -291,7 +297,7 @@ public class MainActivity extends FragmentActivity {
         }
     }
 
-    private void onCreateAdapterContextMenu(Menu menu, View v, ContextMenuInfo menuInfo) {
+    private void onCreateAdapterContextMenu(Menu menu, ContextMenuInfo menuInfo) {
         final AdapterContextMenuInfo adapterMenuInfo = (AdapterContextMenuInfo) menuInfo;
         final int position = adapterMenuInfo.position;
         final BluetoothDevice device = mDeviceAdapter.getItem(position);
@@ -391,13 +397,14 @@ public class MainActivity extends FragmentActivity {
     }
 
     @TargetApi(Build.VERSION_CODES.GINGERBREAD_MR1)
-    private void showWriteTagActivity(BluetoothDevice device, final String deviceName) {
+    private void showWriteTagActivity(@NotNull BluetoothDevice device, String deviceName) {
         final Uri.Builder builder = new Uri.Builder().scheme(URI_SCHEME)
                 .authority(URI_AUTHORITY)
                 .appendQueryParameter(QUERY_VERSION, Integer.toString(TAG_VERSION))
                 .appendQueryParameter(QUERY_ADDRESS, device.getAddress());
 
-        if (!device.getName().equals(deviceName)) {
+        final String realDeviceName = device.getName();
+        if ((realDeviceName == null) || !realDeviceName.equals(deviceName)) {
             builder.appendQueryParameter(QUERY_NAME, deviceName);
         }
 
@@ -426,7 +433,7 @@ public class MainActivity extends FragmentActivity {
 
     private void attemptEnableBluetooth() {
         if (!mBluetoothAdapter.enable()) {
-            Toast.makeText(this,  R.string.failure_enable_bluetooth, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.failure_enable_bluetooth, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -476,6 +483,10 @@ public class MainActivity extends FragmentActivity {
 
         try {
             final PackageManager pm = getPackageManager();
+            if (pm == null) {
+                return;
+            }
+
             final PackageInfo pi = pm.getPackageInfo(getPackageName(), 0);
             appVersion = pi.versionName;
             appPackage = pi.packageName;
@@ -491,7 +502,7 @@ public class MainActivity extends FragmentActivity {
                 phoneModel, osVersion);
 
         final Intent sendIntent = new Intent(Intent.ACTION_SEND);
-        sendIntent.putExtra(Intent.EXTRA_EMAIL, new String[] {
+        sendIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{
                 contactEmail
         });
         sendIntent.putExtra(Intent.EXTRA_TEXT, body);
@@ -618,11 +629,11 @@ public class MainActivity extends FragmentActivity {
         public void onAudioProxyAvailable() {
             sendEmptyMessage(PROXY_AVAILABLE);
         }
-    };
+    }
 
-    @TargetApi(11)
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     private static class HoneycombHelper {
-        public static final int MIN_API_LEVEL = 11;
+        public static final int MIN_API_LEVEL = Build.VERSION_CODES.HONEYCOMB;
 
         public static void showPopupContextMenu(final MainActivity parent, View anchor) {
             final PopupMenu optionsMenu = new PopupMenu(parent, anchor);
@@ -639,7 +650,7 @@ public class MainActivity extends FragmentActivity {
         }
 
         public static void showPopupContextMenuForDevice(final MainActivity parent, View anchor,
-                final BluetoothDevice device) {
+                                                         final BluetoothDevice device) {
             final PopupMenu deviceMenu = new PopupMenu(parent, anchor);
             deviceMenu.setOnMenuItemClickListener(new OnMenuItemClickListener() {
                 @Override

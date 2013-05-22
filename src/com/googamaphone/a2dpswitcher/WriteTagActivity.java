@@ -16,8 +16,6 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import com.googamaphone.utils.NfcUtils;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -35,37 +33,55 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.widget.TextView;
 
+import com.googamaphone.utils.NfcUtils;
+
 /**
  * Activity used for writing URIs to NFC tags.
- * <p>
+ * <p/>
  * Must specify the URI to write with extra {@link #EXTRA_URI}. Optionally, set
  * {@link #EXTRA_PACKAGE} to specify the app package that should be used to
  * handle the NFC tag.
  */
 @TargetApi(Build.VERSION_CODES.GINGERBREAD_MR1)
 public class WriteTagActivity extends Activity {
-    /** Extra representing the URI to write to an NFC tag. */
+    /**
+     * Extra representing the URI to write to an NFC tag.
+     */
     public static final String EXTRA_URI = "uri";
 
-    /** Extra representing the app package that should handle the NFC tag. */
+    /**
+     * Extra representing the app package that should handle the NFC tag.
+     */
     public static final String EXTRA_PACKAGE = "package";
 
-    /** Broadcast action sent by the system when an NFC tag is detected. */
+    /**
+     * Broadcast action sent by the system when an NFC tag is detected.
+     */
     private static final String BROADCAST_WRITE_TAG = "com.googlecode.eyesfree.nfc.WRITE_TAG";
 
-    /** Delay in milliseconds before finishing after a successful write. */
+    /**
+     * Delay in milliseconds before finishing after a successful write.
+     */
     private static final long DELAY_SUCCESS = 1000;
 
-    /** Delay in milliseconds before finishing after a failed write. */
+    /**
+     * Delay in milliseconds before finishing after a failed write.
+     */
     private static final long DELAY_FAILURE = 2000;
 
-    /** The default NFC adapter. */
+    /**
+     * The default NFC adapter.
+     */
     private NfcAdapter mNfcAdapter;
 
-    /** The URI to write to the NFC tag. */
+    /**
+     * The URI to write to the NFC tag.
+     */
     private Uri mUri;
 
-    /** The package to write to the NFC tag. */
+    /**
+     * The package to write to the NFC tag.
+     */
     private String mPackage;
 
     @Override
@@ -117,10 +133,10 @@ public class WriteTagActivity extends Activity {
     private void registerForegroundDispatch() {
         final Intent intent = new Intent(BROADCAST_WRITE_TAG).setPackage(getPackageName());
         final PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
-        final String[][] techFilters = new String[][] {
+        final String[][] techFilters = new String[][]{
                 {
                         Ndef.class.getName()
-            }
+                }
         };
 
         registerReceiver(mNfcReceiver, new IntentFilter(BROADCAST_WRITE_TAG));

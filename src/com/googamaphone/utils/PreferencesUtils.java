@@ -1,10 +1,10 @@
 
 package com.googamaphone.utils;
 
-import java.util.Collection;
-
 import android.content.SharedPreferences;
 import android.util.SparseArray;
+
+import java.util.Collection;
 
 public class PreferencesUtils {
     private static final String ESCAPE_CHARACTER = "\\";
@@ -21,7 +21,7 @@ public class PreferencesUtils {
     };
 
     public static void putSparseArray(SharedPreferences.Editor editor, String key,
-            SparseArray<String> array) {
+                                      SparseArray<String> array) {
         final StringBuilder value = new StringBuilder();
 
         for (int i = 0; i < array.size(); i++) {
@@ -50,7 +50,7 @@ public class PreferencesUtils {
     }
 
     public static void putCollection(SharedPreferences.Editor editor, String key,
-            Collection<Integer> collection) {
+                                     Collection<Integer> collection) {
         final StringBuilder value = new StringBuilder();
 
         for (Integer item : collection) {
@@ -62,7 +62,7 @@ public class PreferencesUtils {
     }
 
     public static void getCollection(SharedPreferences prefs, String key,
-            Collection<Integer> collection) {
+                                     Collection<Integer> collection) {
         final String value = prefs.getString(key, "");
         final String[] items = value.split(ITEM_SEPARATOR);
 
@@ -75,7 +75,7 @@ public class PreferencesUtils {
         }
     }
 
-    private static final String escape(String text) {
+    private static String escape(String text) {
         for (int i = 0; i < ESCAPE_FIND.length; i++) {
             text = text.replace(ESCAPE_FIND[i], ESCAPE_REPLACE[i]);
         }
@@ -83,7 +83,7 @@ public class PreferencesUtils {
         return text;
     }
 
-    private static final String unescape(String text) {
+    private static String unescape(String text) {
         for (int i = 0; i < ESCAPE_REPLACE.length; i++) {
             text = text.replace(ESCAPE_REPLACE[i], ESCAPE_FIND[i]);
         }
