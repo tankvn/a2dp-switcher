@@ -159,7 +159,8 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             final DeviceMetadata metadata = mMetadata.get(device);
             final short rssi = metadata.rssi;
             if (rssi != Short.MIN_VALUE) {
-                statusView.append(parent.getContext().getString(R.string.signal_strength, rssi));
+                final Context context = parent.getContext();
+                statusView.append(" " + context.getString(R.string.signal_strength, rssi));
             }
         }
 

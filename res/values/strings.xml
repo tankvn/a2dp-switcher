@@ -55,7 +55,7 @@
     <string name="state_disconnected">Disconnected</string>
     <string name="state_disconnecting">Disconnecting</string>
     <string name="state_playing">Playing</string>
-    <string name="signal_strength"> (%d dBm)</string>
+    <string name="signal_strength">(%d dBm)</string>
 
     <!-- NFC -->
     <string name="connecting">Connecting audio…</string>
