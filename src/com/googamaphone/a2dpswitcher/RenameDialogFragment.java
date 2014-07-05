@@ -44,7 +44,7 @@ public class RenameDialogFragment extends DialogFragment {
             }
         };
 
-        final LayoutInflater inflater = getLayoutInflater(savedInstanceState);
+        final LayoutInflater inflater = getActivity().getLayoutInflater();
         final View renameDialogView = inflater.inflate(R.layout.rename_dialog, null);
 
         final EditText editText = (EditText) renameDialogView.findViewById(R.id.device_name);

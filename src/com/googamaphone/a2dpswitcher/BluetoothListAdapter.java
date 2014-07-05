@@ -15,7 +15,6 @@ import android.content.IntentFilter;
 import android.graphics.PorterDuff.Mode;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -35,8 +34,6 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private static final int STATE_PRESENT = 1;
     private static final int STATE_PENDING = 2;
     private static final int STATE_CONNECTED = 4;
-
-    private static final String TAG = BluetoothListAdapter.class.getSimpleName();
 
     private static final int[] ALL_A2DP_STATES = new int[]{
             BluetoothA2dpCompat.STATE_DISCONNECTED, BluetoothA2dpCompat.STATE_CONNECTING,
@@ -242,13 +239,11 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     public void setDiscoveryEnabled(boolean enabled) {
         mDiscoveryEnabled = enabled;
 
-        final boolean isDiscovering = mBluetoothAdapter.isDiscovering();
-
         if (!enabled) {
             mHandler.removeCallbacks(mDiscoveryRunnable);
             mBluetoothAdapter.cancelDiscovery();
-        } else if (!isDiscovering) {
-            mBluetoothAdapter.startDiscovery();
+        } else if (!mBluetoothAdapter.isDiscovering()) {
+            mDiscoveryRunnable.run();
         }
     }
 
@@ -469,8 +464,6 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             case BluetoothA2dp.STATE_PLAYING:
                 return R.string.state_playing;
         }
-
-        Log.e(TAG, "Unknown Bluetooth state: " + state);
 
         return R.string.state_disconnected;
     }
