@@ -1,7 +1,12 @@
 
 package com.googamaphone.a2dpswitcher;
 
-import android.annotation.TargetApi;
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpCompatCallback;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+import com.googamaphone.utils.PreferencesUtils;
+
+import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.app.backup.BackupManager;
@@ -13,23 +18,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Binder;
-import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
-import android.support.v4.app.NotificationCompat;
 import android.util.SparseArray;
-
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.compat.BluetoothA2dpCompat.BluetoothA2dpCompatCallback;
-import com.googamaphone.utils.BluetoothDeviceUtils;
-import com.googamaphone.utils.PreferencesUtils;
 
 import java.util.List;
 import java.util.TreeSet;
 
-@TargetApi(Build.VERSION_CODES.FROYO)
 public class BluetoothSwitcherService extends Service {
     public static final String PREF_HIDDEN = "hidden";
     public static final String PREF_CUSTOM_NAMES = "customNames";
@@ -48,7 +45,7 @@ public class BluetoothSwitcherService extends Service {
     private final SparseArray<String> mCustomDeviceNames = new SparseArray<String>();
     private final TreeSet<Integer> mHiddenDevices = new TreeSet<Integer>();
 
-    private NotificationCompat.Builder mNotificationBuilder;
+    private Notification.Builder mNotificationBuilder;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothA2dpCompat mAudioProxy;
 
@@ -107,14 +104,14 @@ public class BluetoothSwitcherService extends Service {
         final Intent intent = new Intent(this, MainActivity.class);
         final PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
 
-        mNotificationBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.drawable.ic_stat_switcher)
+        mNotificationBuilder = new Notification.Builder(this)
                 .setTicker(getString(R.string.notification_ticker))
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setWhen(0);
     }
 
+    @SuppressWarnings("deprecation")
     private void updateNotification() {
         if (!mShowNotification) {
             stopForeground(true);
@@ -125,33 +122,42 @@ public class BluetoothSwitcherService extends Service {
             // This device does not support Bluetooth.
             mNotificationBuilder.setContentTitle(getString(R.string.notify_missing_bluetooth));
             mNotificationBuilder.setContentText(null);
+            mNotificationBuilder.setSmallIcon(R.drawable.ic_stat_switcher_error);
         } else if (!mBluetoothAdapter.isEnabled()) {
             // Bluetooth is currently disabled.
             mNotificationBuilder.setContentTitle(getString(R.string.notify_bluetooth_disabled));
             mNotificationBuilder.setContentText(null);
+            mNotificationBuilder.setSmallIcon(R.drawable.ic_stat_switcher_error);
         } else if (mAudioProxy == null) {
             // Failed to connect to the audio service.
             mNotificationBuilder.setContentTitle(getString(R.string.notify_missing_audio_service));
             mNotificationBuilder.setContentText(null);
+            mNotificationBuilder.setSmallIcon(R.drawable.ic_stat_switcher_error);
         } else {
-            mNotificationBuilder.setContentTitle(getConnectedDeviceName());
+            final BluetoothDevice device = getConnectedDevice();
+            if (device != null) {
+                mNotificationBuilder.setContentTitle(mBinder.getDeviceName(device));
+                mNotificationBuilder.setSmallIcon(R.drawable.ic_stat_switcher_connected);
+            } else {
+                mNotificationBuilder.setContentTitle(getString(R.string.no_device));
+                mNotificationBuilder.setSmallIcon(R.drawable.ic_stat_switcher_disconnected);
+            }
             mNotificationBuilder.setContentText(getString(R.string.touch_to_change));
         }
 
         startForeground(R.id.notify_switcher, mNotificationBuilder.getNotification());
     }
 
-    private String getConnectedDeviceName() {
+    private BluetoothDevice getConnectedDevice() {
         final List<BluetoothDevice> devices = mAudioProxy
                 .getDevicesMatchingConnectionStates(STATES_CONNECTED);
 
         if ((devices == null) || devices.isEmpty()) {
             // No audio devices are connected.
-            return getString(R.string.no_device);
+            return null;
         }
 
-        final BluetoothDevice connectedDevice = devices.get(0);
-        return mBinder.getDeviceName(connectedDevice);
+        return devices.get(0);
     }
 
     private void loadPreferences() {

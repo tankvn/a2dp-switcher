@@ -5,5 +5,7 @@
     <item name="tag_device" type="id"/>
     <item name="tag_position" type="id"/>
     <item name="list_entry" type="id"/>
+    <item name="anim" type="id"/>
+    <item name="anim_type" type="id"/>
 
 </resources>

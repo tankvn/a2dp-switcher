@@ -4,13 +4,13 @@
     android:layout_height="match_parent"
     android:orientation="horizontal" >
 
-    <ImageButton
+    <ImageView
         android:id="@+id/device_settings"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
-        android:background="@null"
-        android:contentDescription="@string/device_settings"
+        android:background="?android:attr/actionBarItemBackground"
+        android:contentDescription="@string/settings"
         android:src="@drawable/perm_group_system_tools" />
 
     <View
@@ -18,7 +18,7 @@
         android:layout_width="4dp"
         android:layout_height="match_parent"
         android:layout_margin="4dp"
-        android:background="@color/presence_indicator"
-        android:visibility="invisible" />
+        android:alpha="0"
+        android:background="@color/presence_indicator" />
 
 </LinearLayout>

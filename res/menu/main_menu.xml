@@ -3,11 +3,9 @@
 
     <item
         android:id="@+id/disconnect_all"
-        android:icon="@drawable/ic_menu_delete"
         android:title="@string/disconnect_all"/>
     <item
         android:id="@+id/bluetooth_settings"
-        android:icon="@drawable/ic_menu_preferences"
         android:title="@string/bluetooth_settings"/>
     <item
         android:id="@+id/show_hidden"
@@ -19,7 +17,6 @@
         android:visible="false"/>
     <item
         android:id="@+id/contact_developer"
-        android:icon="@drawable/ic_menu_send_feedback"
         android:title="@string/contact_dev"/>
 
 </menu>

@@ -25,7 +25,6 @@ class BluetoothA2dpHoneycombImpl extends BluetoothA2dpStubImpl {
     @Override
     public boolean obtain(Context context, final BluetoothA2dpStubCallback callback) {
         final BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-
         if (adapter == null) {
             return false;
         }

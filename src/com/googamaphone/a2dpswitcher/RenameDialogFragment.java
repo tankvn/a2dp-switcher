@@ -44,15 +44,13 @@ public class RenameDialogFragment extends DialogFragment {
             }
         };
 
-        final LayoutInflater inflater = LayoutInflater.from(getActivity());
+        final LayoutInflater inflater = getLayoutInflater(savedInstanceState);
         final View renameDialogView = inflater.inflate(R.layout.rename_dialog, null);
-        assert renameDialogView != null;
 
         final EditText editText = (EditText) renameDialogView.findViewById(R.id.device_name);
         editText.setText(deviceName);
 
         return new AlertDialog.Builder(getActivity())
-                .setIcon(android.R.drawable.ic_dialog_info)
                 .setTitle(R.string.menu_rename)
                 .setView(renameDialogView)
                 .setPositiveButton(android.R.string.ok, onClickListener)

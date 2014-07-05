@@ -16,6 +16,8 @@
 
 package com.googamaphone.a2dpswitcher;
 
+import com.googamaphone.utils.NfcUtils;
+
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -23,6 +25,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.PorterDuff.Mode;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcManager;
@@ -31,9 +35,8 @@ import android.nfc.tech.Ndef;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.widget.ProgressBar;
 import android.widget.TextView;
-
-import com.googamaphone.utils.NfcUtils;
 
 /**
  * Activity used for writing URIs to NFC tags.
@@ -42,46 +45,30 @@ import com.googamaphone.utils.NfcUtils;
  * {@link #EXTRA_PACKAGE} to specify the app package that should be used to
  * handle the NFC tag.
  */
-@TargetApi(Build.VERSION_CODES.GINGERBREAD_MR1)
+@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
 public class WriteTagActivity extends Activity {
-    /**
-     * Extra representing the URI to write to an NFC tag.
-     */
+    /** Extra representing the URI to write to an NFC tag. */
     public static final String EXTRA_URI = "uri";
 
-    /**
-     * Extra representing the app package that should handle the NFC tag.
-     */
+    /** Extra representing the app package that should handle the NFC tag. */
     public static final String EXTRA_PACKAGE = "package";
 
-    /**
-     * Broadcast action sent by the system when an NFC tag is detected.
-     */
+    /** Broadcast action sent by the system when an NFC tag is detected. */
     private static final String BROADCAST_WRITE_TAG = "com.googlecode.eyesfree.nfc.WRITE_TAG";
 
-    /**
-     * Delay in milliseconds before finishing after a successful write.
-     */
+    /** Delay in milliseconds before finishing after a successful write. */
     private static final long DELAY_SUCCESS = 1000;
 
-    /**
-     * Delay in milliseconds before finishing after a failed write.
-     */
+    /** Delay in milliseconds before finishing after a failed write. */
     private static final long DELAY_FAILURE = 2000;
 
-    /**
-     * The default NFC adapter.
-     */
+    /** The default NFC adapter. */
     private NfcAdapter mNfcAdapter;
 
-    /**
-     * The URI to write to the NFC tag.
-     */
+    /** The URI to write to the NFC tag. */
     private Uri mUri;
 
-    /**
-     * The package to write to the NFC tag.
-     */
+    /** The package to write to the NFC tag. */
     private String mPackage;
 
     @Override
@@ -92,6 +79,11 @@ public class WriteTagActivity extends Activity {
 
         final TextView message = (TextView) findViewById(R.id.message);
         message.setText(R.string.progress_waiting_for_tag);
+
+        final ProgressBar status = (ProgressBar) findViewById(R.id.busy);
+        final Drawable d = status.getIndeterminateDrawable();
+        final int color = message.getTextColors().getDefaultColor();
+        d.setColorFilter(color, Mode.SRC_IN);
 
         final Intent intent = getIntent();
         mUri = intent.getParcelableExtra(EXTRA_URI);
@@ -133,11 +125,7 @@ public class WriteTagActivity extends Activity {
     private void registerForegroundDispatch() {
         final Intent intent = new Intent(BROADCAST_WRITE_TAG).setPackage(getPackageName());
         final PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
-        final String[][] techFilters = new String[][]{
-                {
-                        Ndef.class.getName()
-                }
-        };
+        final String[][] techFilters = new String[][] {{ Ndef.class.getName() }};
 
         registerReceiver(mNfcReceiver, new IntentFilter(BROADCAST_WRITE_TAG));
 
@@ -174,7 +162,11 @@ public class WriteTagActivity extends Activity {
      * finishes after a delay.
      */
     private void showSuccessAndFinish() {
-        setContentView(R.layout.dialog_success);
+        findViewById(R.id.busy).animate().alpha(0);
+        findViewById(R.id.success).animate().alpha(1);
+
+        final TextView message = (TextView) findViewById(R.id.message);
+        message.setText(R.string.successful);
 
         setResult(RESULT_OK);
         mHandler.postDelayed(mDelayedFinish, DELAY_SUCCESS);
@@ -187,7 +179,8 @@ public class WriteTagActivity extends Activity {
      * @param resId The message to display.
      */
     private void showFailureAndFinish(int resId) {
-        setContentView(R.layout.dialog_failure);
+        findViewById(R.id.busy).animate().alpha(0);
+        findViewById(R.id.failed).animate().alpha(1);
 
         final TextView message = (TextView) findViewById(R.id.message);
         message.setText(resId);

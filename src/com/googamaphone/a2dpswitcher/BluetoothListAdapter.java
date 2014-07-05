@@ -1,6 +1,10 @@
 
 package com.googamaphone.a2dpswitcher;
 
+import com.googamaphone.compat.BluetoothA2dpCompat;
+import com.googamaphone.utils.BluetoothDeviceUtils;
+
+import android.animation.ObjectAnimator;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -8,6 +12,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.PorterDuff.Mode;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
@@ -16,18 +21,21 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
-
-import com.googamaphone.compat.BluetoothA2dpCompat;
-import com.googamaphone.utils.BluetoothDeviceUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
+    private static final int STATE_UNKNOWN = 0;
+    private static final int STATE_PRESENT = 1;
+    private static final int STATE_PENDING = 2;
+    private static final int STATE_CONNECTED = 4;
+
     private static final String TAG = BluetoothListAdapter.class.getSimpleName();
 
     private static final int[] ALL_A2DP_STATES = new int[]{
@@ -61,7 +69,8 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     private static final long PRESENCE_TIMEOUT = 30000;
 
     private final ArrayList<BluetoothDevice> mAudioDevices = new ArrayList<BluetoothDevice>();
-    private final HashMap<BluetoothDevice, Long> mPresence = new HashMap<BluetoothDevice, Long>();
+    private final HashMap<BluetoothDevice, DeviceMetadata> mMetadata =
+            new HashMap<BluetoothDevice, DeviceMetadata>();
 
     private final Context mContext;
     private final LayoutInflater mLayoutInflater;
@@ -95,6 +104,11 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     }
 
     @Override
+    public boolean hasStableIds() {
+        return true;
+    }
+
+    @Override
     public BluetoothDevice getItem(int position) {
         // TODO: Error handling.
         return mAudioDevices.get(position);
@@ -103,7 +117,6 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
     @Override
     public long getItemId(int position) {
         final BluetoothDevice device = getItem(position);
-
         return BluetoothDeviceUtils.getDeviceId(device);
     }
 
@@ -117,17 +130,17 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             params.weight = 1.0f;
 
-            assert innerView != null;
-            innerView.setId(R.id.list_entry);
-            innerView.setOnClickListener(mSettingsClickListener);
-
-            assert outerView != null;
             outerView.addView(innerView, 0, params);
-            outerView.findViewById(R.id.device_settings).setOnClickListener(mSettingsClickListener);
+
+            final ImageView settings = (ImageView) outerView.findViewById(R.id.device_settings);
+            settings.setOnClickListener(mSettingsClickListener);
+
+            // Apply the correct tint.
+            final TextView labelView = (TextView) outerView.findViewById(mLabelResId);
+            settings.setColorFilter(labelView.getTextColors().getDefaultColor(), Mode.SRC_IN);
 
             convertView = outerView;
         }
-
 
         final TextView labelView = (TextView) convertView.findViewById(mLabelResId);
         final TextView statusView = (TextView) convertView.findViewById(mStatusResId);
@@ -139,27 +152,76 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         final int statusResId = getResourceForDeviceState(state);
 
         // Ensure settings button has correct tag.
-        convertView.findViewById(R.id.list_entry).setTag(R.id.tag_device, device);
+        convertView.setTag(R.id.tag_device, device);
         convertView.findViewById(R.id.device_settings).setTag(R.id.tag_device, device);
 
         labelView.setText(deviceName);
         statusView.setText(statusResId);
 
-        // TODO: This should just use a different layout (or style?).
-        if (mShowAllDevices && !isDeviceVisible(device)) {
-            convertView.setBackgroundColor(0x33000000);
-            labelView.setTextColor(0x99FFFFFF);
-            statusView.setTextColor(0x66FFFFFF);
-        } else {
-            convertView.setBackgroundColor(0);
-            labelView.setTextColor(0xFFFFFFFF);
-            statusView.setTextColor(0xCCFFFFFF);
+        if (isDevicePresent(device)) {
+            final DeviceMetadata metadata = mMetadata.get(device);
+            final short rssi = metadata.rssi;
+            if (rssi != Short.MIN_VALUE) {
+                statusView.append(parent.getContext().getString(R.string.signal_strength, rssi));
+            }
         }
 
-        if (isStatePresent(state) || isDevicePresent(device)) {
-            presenceIcon.setVisibility(View.VISIBLE);
+        if (mShowAllDevices && !isDeviceVisible(device)) {
+            labelView.setAlpha(0.5f);
+            statusView.setAlpha(0.5f);
         } else {
-            presenceIcon.setVisibility(View.INVISIBLE);
+            labelView.setAlpha(1);
+            statusView.setAlpha(1);
+        }
+
+        final int animType;
+        if (isStatePending(state)) {
+            animType = STATE_PENDING;
+        } else if (state == BluetoothA2dp.STATE_CONNECTED) {
+            animType = STATE_CONNECTED;
+        } else if (isStatePresent(state) || isDevicePresent(device)) {
+            animType = STATE_PRESENT;
+        } else {
+            animType = STATE_UNKNOWN;
+        }
+
+        final Integer oldAnimType = (Integer) convertView.getTag(R.id.anim_type);
+        if (oldAnimType == null || oldAnimType != animType) {
+            final ObjectAnimator oldAnim = (ObjectAnimator) convertView.getTag(R.id.anim);
+            if (oldAnim != null) {
+                oldAnim.cancel();
+            }
+
+            final ObjectAnimator anim;
+            switch (animType) {
+                case STATE_UNKNOWN:
+                    anim = ObjectAnimator.ofFloat(presenceIcon, "alpha", 0);
+                    anim.setDuration(150);
+                    break;
+                case STATE_PRESENT:
+                    anim = ObjectAnimator.ofFloat(presenceIcon, "alpha", 0.5f);
+                    anim.setDuration(150);
+                    break;
+                case STATE_PENDING:
+                    anim = ObjectAnimator.ofFloat(presenceIcon, "alpha", 0, 1);
+                    anim.setRepeatCount(ObjectAnimator.INFINITE);
+                    anim.setRepeatMode(ObjectAnimator.REVERSE);
+                    anim.setDuration(500);
+                    break;
+                case STATE_CONNECTED:
+                    anim = ObjectAnimator.ofFloat(presenceIcon, "alpha", 1);
+                    anim.setDuration(150);
+                    break;
+                default:
+                    anim = null;
+            }
+
+            if (anim != null) {
+                anim.start();
+            }
+
+            convertView.setTag(R.id.anim, anim);
+            convertView.setTag(R.id.anim_type, animType);
         }
 
         return convertView;
@@ -314,12 +376,21 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
         notifyDataSetChanged();
     }
 
-    private void onDeviceFound(BluetoothDevice device) {
+    private void onDeviceFound(BluetoothDevice device, short rssi) {
         if (!mAudioDevices.contains(device)) {
             return;
         }
 
-        mPresence.put(device, SystemClock.uptimeMillis());
+        final DeviceMetadata metadata;
+        if (mMetadata.containsKey(device)) {
+            metadata = mMetadata.get(device);
+        } else {
+            metadata = new DeviceMetadata();
+            mMetadata.put(device, metadata);
+        }
+
+        metadata.lastSeen = SystemClock.uptimeMillis();
+        metadata.rssi = rssi;
 
         reloadDevices();
     }
@@ -332,13 +403,31 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
      * @return {@code true} if the device is present.
      */
     private boolean isDevicePresent(BluetoothDevice device) {
-        if (!mPresence.containsKey(device)) {
+        if (!mMetadata.containsKey(device)) {
             return false;
         }
 
-        final long elapsed = (SystemClock.uptimeMillis() - mPresence.get(device));
-
+        final DeviceMetadata metadata = mMetadata.get(device);
+        final long elapsed = (SystemClock.uptimeMillis() - metadata.lastSeen);
         return (elapsed < PRESENCE_TIMEOUT);
+    }
+
+    /**
+     * Returns whether a connectivity state implies that the associated device
+     * is busy.
+     *
+     * @param state The connectivity state for a device.
+     * @return {@code true} if the connectivity state implies that the device is
+     *         busy.
+     */
+    private static boolean isStatePending(int state) {
+        switch (state) {
+            case BluetoothA2dp.STATE_DISCONNECTING:
+            case BluetoothA2dp.STATE_CONNECTING:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**
@@ -405,8 +494,10 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 final BluetoothDevice device = intent
                         .getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                final short rssi = intent.getShortExtra(
+                        BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE);
                 if (device != null) {
-                    onDeviceFound(device);
+                    onDeviceFound(device, rssi);
                 }
             }
         }
@@ -418,4 +509,9 @@ public class BluetoothListAdapter extends BaseAdapter implements ListAdapter {
             mBluetoothAdapter.startDiscovery();
         }
     };
+
+    private static class DeviceMetadata {
+        long lastSeen;
+        short rssi;
+    }
 }

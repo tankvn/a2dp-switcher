@@ -1,9 +1,9 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
 
     <string name="app_name">A2DP Switcher</string>
-    <string name="title_activity_main">Streaming devices</string>
+    <string name="title_activity_main">A2DP</string>
     <string name="confirm_hide_device">Are you sure you want to hide \"%1$s\"?</string>
-    <string name="enable_bluetooth">Bluetooth is currently disabled. Enable it to show available devices.</string>
+    <string name="enable_bluetooth">Bluetooth is currently\ndisabled. Enable it to\nshow available devices.</string>
     <string name="enable">Enable</string>
     <string name="menu">Menu</string>
 
@@ -55,6 +55,7 @@
     <string name="state_disconnected">Disconnected</string>
     <string name="state_disconnecting">Disconnecting</string>
     <string name="state_playing">Playing</string>
+    <string name="signal_strength">(%d dBm)</string>
 
     <!-- NFC -->
     <string name="connecting">Connecting audio…</string>
@@ -65,5 +66,8 @@
     <string name="bluetooth_settings">Open Bluetooth settings</string>
     <string name="show_hidden">Show hidden devices</string>
     <string name="settings">Settings</string>
+    <string name="successful">Successful</string>
+    <string name="failed">Failed</string>
+    <string name="_ffff0000">#ffff0000</string>
 
 </resources>

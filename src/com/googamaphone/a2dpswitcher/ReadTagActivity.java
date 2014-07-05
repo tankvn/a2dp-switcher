@@ -25,6 +25,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.graphics.PorterDuff.Mode;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
@@ -32,6 +34,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Pair;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.googamaphone.a2dpswitcher.BluetoothSwitcherService.DeviceManagementBinder;
@@ -53,19 +56,13 @@ import java.util.Set;
  * </ol>
  */
 public class ReadTagActivity extends Activity {
-    /**
-     * Delay in milliseconds before finishing after a successful read.
-     */
+    /** Delay in milliseconds before finishing after a successful read. */
     private static final long DELAY_SUCCESS = 1000;
 
-    /**
-     * Delay in milliseconds before finishing after a failed read.
-     */
+    /** Delay in milliseconds before finishing after a failed read. */
     private static final long DELAY_FAILURE = 2000;
 
-    /**
-     * Intent filter used to monitor changes in Bluetooth state.
-     */
+    /** Intent filter used to monitor changes in Bluetooth state. */
     private static final IntentFilter FILTER_STATE_CHANGED = new IntentFilter();
 
     static {
@@ -74,35 +71,23 @@ public class ReadTagActivity extends Activity {
         FILTER_STATE_CHANGED.addAction(BluetoothA2dpCompat.ACTION_CONNECTION_STATE_CHANGED);
     }
 
-    /**
-     * The default Bluetooth adapter.
-     */
+    /** The default Bluetooth adapter. */
     private BluetoothAdapter mBluetoothAdapter;
 
-    /**
-     * The audio proxy used to connect A2DP streaming.
-     */
+    /** The audio proxy used to connect A2DP streaming. */
     private BluetoothA2dpCompat mAudioProxy;
 
-    /**
-     * Connection to the A2DP device management service.
-     */
+    /** Connection to the A2DP device management service. */
     // TODO(alanv): This seems like overkill since they're in the same package.
     private DeviceManagementBinder mDeviceManagementBinder;
 
-    /**
-     * The address of the target device, as read from the NFC tag.
-     */
+    /** The address of the target device, as read from the NFC tag. */
     private String mTargetAddress;
 
-    /**
-     * The name of the target device, as read from the NFC tag.
-     */
+    /** The name of the target device, as read from the NFC tag. */
     private String mTargetName;
 
-    /**
-     * Whether the service was bound successfully.
-     */
+    /** Whether the service was bound successfully. */
     private boolean mServiceBound;
 
     @Override
@@ -111,16 +96,22 @@ public class ReadTagActivity extends Activity {
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        showProgress(R.string.progress_reading_tag);
+        setContentView(R.layout.dialog_waiting);
 
+        final TextView message = (TextView) findViewById(R.id.message);
+        final ProgressBar status = (ProgressBar) findViewById(R.id.busy);
+        final Drawable d = status.getIndeterminateDrawable();
+        final int color = message.getTextColors().getDefaultColor();
+        d.setColorFilter(color, Mode.SRC_IN);
+
+        setMessage(R.string.progress_reading_tag);
         registerReceiver(mBroadcastReceiver, FILTER_STATE_CHANGED);
 
-        if (!handleIntent()) {
+        if (handleIntent()) {
+            resumeConnectingToDevice();
+        } else {
             showFailure(R.string.failure_read_tag);
-            return;
         }
-
-        resumeConnectingToDevice();
     }
 
     @Override
@@ -144,30 +135,24 @@ public class ReadTagActivity extends Activity {
      * @return {@code true} on success.
      */
     private boolean handleIntent() {
+        boolean success = false;
+
         final Intent intent = getIntent();
-        if (intent == null) {
-            return false;
+        if (intent != null) {
+            final String action = intent.getAction();
+            final Uri uri = intent.getData();
+            if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action) && uri != null) {
+                final Pair<String, String> data = A2dpSwitcherUtils.parseUri(uri);
+                if (data != null) {
+                    mTargetAddress = data.first;
+                    mTargetName = data.second;
+
+                    success = true;
+                }
+            }
         }
 
-        final String action = intent.getAction();
-        if (!NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
-            return false;
-        }
-
-        final Uri uri = intent.getData();
-        if (uri == null) {
-            return false;
-        }
-
-        final Pair<String, String> data = A2dpSwitcherUtils.parseUri(uri);
-        if (data == null) {
-            return false;
-        }
-
-        mTargetAddress = data.first;
-        mTargetName = data.second;
-
-        return true;
+        return success;
     }
 
     /**
@@ -232,10 +217,10 @@ public class ReadTagActivity extends Activity {
      * Attempts to enable Bluetooth on this device.
      */
     private void attemptEnableBluetooth() {
-        if (!mBluetoothAdapter.enable()) {
-            showFailure(R.string.failure_enable_bluetooth);
+        if (mBluetoothAdapter.enable()) {
+            setMessage(R.string.progress_enable_bluetooth);
         } else {
-            showProgress(R.string.progress_enable_bluetooth);
+            showFailure(R.string.failure_enable_bluetooth);
         }
     }
 
@@ -245,10 +230,10 @@ public class ReadTagActivity extends Activity {
      * @param device The device to bond.
      */
     private void attemptBondDevice(BluetoothDevice device) {
-        if (!BluetoothDeviceCompatUtils.createBond(device)) {
-            showFailure(R.string.failure_bond_device);
+        if (BluetoothDeviceCompatUtils.createBond(device)) {
+            setMessage(R.string.progress_bond_device);
         } else {
-            showProgress(R.string.progress_bond_device);
+            showFailure(R.string.failure_bond_device);
         }
     }
 
@@ -275,7 +260,7 @@ public class ReadTagActivity extends Activity {
 
         // Attempt to connect. If we fail immediately, let the user know.
         if (mAudioProxy.connect(device)) {
-            showProgress(R.string.progress_connect_device);
+            setMessage(R.string.progress_connect_device);
         } else {
             showFailure(R.string.failure_connect_device);
         }
@@ -296,11 +281,8 @@ public class ReadTagActivity extends Activity {
      *
      * @param resId The message to display.
      */
-    private void showProgress(int resId) {
-        setContentView(R.layout.dialog_waiting);
-
-        final TextView message = (TextView) findViewById(R.id.message);
-        message.setText(resId);
+    private void setMessage(int resId) {
+        ((TextView) findViewById(R.id.message)).setText(resId);
     }
 
     /**
@@ -308,7 +290,8 @@ public class ReadTagActivity extends Activity {
      * finishes after a delay.
      */
     private void showSuccess() {
-        setContentView(R.layout.dialog_success);
+        findViewById(R.id.busy).animate().alpha(0);
+        findViewById(R.id.success).animate().alpha(1);
 
         setResult(RESULT_OK);
         mHandler.postDelayed(mDelayedFinish, DELAY_SUCCESS);
@@ -321,7 +304,8 @@ public class ReadTagActivity extends Activity {
      * @param resId The message to display.
      */
     private void showFailure(int resId) {
-        setContentView(R.layout.dialog_failure);
+        findViewById(R.id.busy).animate().alpha(0);
+        findViewById(R.id.failed).animate().alpha(1);
 
         final TextView message = (TextView) findViewById(R.id.message);
         message.setText(resId);
@@ -352,53 +336,40 @@ public class ReadTagActivity extends Activity {
 
         private void onDeviceConnectionStateChanged(Intent intent) {
             final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            if (device == null) {
-                showFailure(R.string.failure_connect_device);
-                return;
-            }
-
-            final int state = intent.getIntExtra(BluetoothA2dpCompat.EXTRA_STATE,
-                    BluetoothA2dpCompat.STATE_DISCONNECTED);
-            final String address = device.getAddress();
-            if ((address == null) || !address.equals(mTargetAddress)) {
-                showFailure(R.string.failure_connect_device);
-                return;
-            }
-
-            if ((state == BluetoothA2dpCompat.STATE_CONNECTED)
-                    || (state == BluetoothA2dpCompat.STATE_PLAYING)) {
-                showSuccess();
-            } else {
-                showFailure(R.string.failure_connect_device);
+            if (device != null) {
+                final String address = device.getAddress();
+                if (address != null && address.equals(mTargetAddress)) {
+                    final int state = intent.getIntExtra(BluetoothA2dpCompat.EXTRA_STATE,
+                            BluetoothA2dpCompat.STATE_DISCONNECTED);
+                    if (state == BluetoothA2dpCompat.STATE_CONNECTED
+                                || state == BluetoothA2dpCompat.STATE_PLAYING) {
+                        showSuccess();
+                    } else if (state != BluetoothA2dpCompat.STATE_CONNECTING) {
+                        showFailure(R.string.failure_connect_device);
+                    }
+                }
             }
         }
 
         private void onDeviceBondStateChanged(Intent intent) {
             final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            if (device == null) {
-                showFailure(R.string.failure_bond_device);
-                return;
-            }
-
-            final int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
-                    BluetoothDevice.BOND_NONE);
-            final String address = device.getAddress();
-            if ((address == null) || !address.equals(mTargetAddress)) {
-                showFailure(R.string.failure_bond_device);
-                return;
-            }
-
-            if (state == BluetoothDevice.BOND_BONDED) {
-                resumeConnectingToDevice();
-            } else if (state == BluetoothDevice.BOND_NONE) {
-                showFailure(R.string.failure_bond_device);
+            if (device != null) {
+                final String address = device.getAddress();
+                if (address != null && address.equals(mTargetAddress)) {
+                    final int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                            BluetoothDevice.BOND_NONE);
+                    if (state == BluetoothDevice.BOND_BONDED) {
+                        resumeConnectingToDevice();
+                    } else {
+                        showFailure(R.string.failure_bond_device);
+                    }
+                }
             }
         }
 
         private void onAdapterStateChanged(Intent intent) {
             final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                     BluetoothAdapter.ERROR);
-
             if (state == BluetoothAdapter.STATE_ON) {
                 resumeConnectingToDevice();
             } else {

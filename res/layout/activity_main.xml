@@ -1,68 +1,62 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
-    android:layout_height="340dp" >
+    android:layout_height="340dp"
+    android:orientation="vertical" >
 
-    <RelativeLayout
-        android:id="@+id/bluetooth_disabled"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_above="@+id/divider"
-        android:layout_alignParentTop="true"
-        android:orientation="vertical" >
+        android:layout_weight="1"
+        android:background="#08ffffff" >
+
+        <LinearLayout
+            android:id="@+id/bluetooth_disabled"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/enable_bluetooth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="4dp"
+                android:gravity="center"
+                android:text="@string/enable_bluetooth"
+                android:textAppearance="?android:attr/textAppearanceMedium" />
+
+            <Button
+                android:id="@+id/enable"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="4dp"
+                android:text="@string/enable" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/enable_bluetooth"
+            android:id="@+id/empty_list"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
+            android:layout_gravity="center"
             android:layout_margin="8dp"
-            android:gravity="center"
-            android:text="@string/enable_bluetooth"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
+            android:text="@string/not_paired"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:visibility="gone" />
 
-        <Button
-            android:id="@+id/enable"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/enable_bluetooth"
-            android:layout_centerHorizontal="true"
-            android:layout_margin="8dp"
-            android:text="@string/enable" />
-    </RelativeLayout>
-
-    <TextView
-        android:id="@+id/empty_list"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_above="@+id/divider"
-        android:layout_alignParentTop="true"
-        android:layout_margin="8dp"
-        android:gravity="center"
-        android:text="@string/not_paired"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:visibility="gone" />
-
-    <ListView
-        android:id="@+id/list_view"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_above="@+id/divider"
-        android:layout_alignParentTop="true"
-        android:visibility="gone" />
-
-    <View
-        android:id="@+id/divider"
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_above="@+id/bottom_bar"
-        android:background="@color/dialog_divider" />
+        <ListView
+            android:id="@+id/list_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <LinearLayout
-        android:id="@+id/bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
+        android:background="@android:color/transparent"
+        android:minHeight="48dp"
         android:orientation="horizontal" >
 
         <CheckBox
@@ -71,18 +65,18 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:layout_margin="8dp"
-            android:layout_weight="1.0"
+            android:layout_weight="1"
             android:text="@string/show_notification" />
 
-        <ImageButton
+        <ImageView
             android:id="@+id/menu"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginRight="12dp"
-            android:background="@null"
+            android:layout_width="48dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/actionBarItemBackground"
             android:contentDescription="@string/menu"
+            android:scaleType="center"
+            android:layout_marginRight="4dp"
             android:src="@drawable/ic_menu_moreoverflow" />
     </LinearLayout>
 
-</RelativeLayout>
+</LinearLayout>
