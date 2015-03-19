@@ -1,0 +1,1 @@
+A2DP Switcher is an Android app for managing and connecting to A2DP devices. It has support for automatically pairing with and connecting to devices using NFC.
